@@ -51,7 +51,8 @@ export default function TeamPage() {
         .select("*")
         .eq("team_id", playerData.team_id);
 
-      setRoster(rosterData);
+      setRoster(rosterData ?? []);
+
       setLoading(false);
     }
 
