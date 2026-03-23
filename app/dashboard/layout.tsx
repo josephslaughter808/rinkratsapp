@@ -9,7 +9,9 @@ import { TeamProvider } from "@/context/TeamContext";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const hideNav = pathname.startsWith("/dashboard/draft");
+
+  // ⭐ FIXED — remove leading slash
+  const hideNav = pathname.startsWith("dashboard/draft");
 
   const navItems = [
     { href: "/dashboard", label: "Home", icon: "🏠" },

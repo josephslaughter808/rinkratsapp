@@ -21,7 +21,21 @@ export default function TeamSwitcher() {
         return;
       }
 
-      // Load ALL teams for this user
+      // 1️⃣ Get ALL player rows for this user (Peaks + Bison)
+      const { data: playerRows } = await supabase
+        .from("players")
+        .select("id")
+        .eq("user_id", user.id);
+
+      if (!playerRows || playerRows.length === 0) {
+        setTeams([]);
+        setLoading(false);
+        return;
+      }
+
+      const playerIds = playerRows.map((p: any) => p.id);
+
+      // 2️⃣ Load all team memberships for those player IDs
       const { data: memberships, error } = await supabase
         .from("player_teams")
         .select(`
@@ -39,7 +53,7 @@ export default function TeamSwitcher() {
             )
           )
         `)
-        .eq("user_id", user.id);
+        .in("player_id", playerIds);
 
       if (error) {
         console.error("Team load error:", error);
@@ -53,7 +67,7 @@ export default function TeamSwitcher() {
         return;
       }
 
-      // Map teams cleanly
+      // 3️⃣ Map teams cleanly
       const mappedTeams = memberships.map((row: any) => ({
         id: row.teams?.id,
         name: row.teams?.name,
@@ -66,12 +80,12 @@ export default function TeamSwitcher() {
 
       setTeams(mappedTeams);
 
-      // Set default selected team
+      // 4️⃣ Set default selected team
       if (!selectedTeam) {
         setSelectedTeam(mappedTeams[0]);
       }
 
-      // Load player info ONCE
+      // 5️⃣ Load player info for the selected team
       const { data: playerData } = await supabase
         .from("players")
         .select("name, number, position, profile_pic_url")

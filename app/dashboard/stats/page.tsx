@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../../../lib/supabaseClient";
 import { useRouter } from "next/navigation";
+import { useTeam } from "@/context/TeamContext";
 
 function positionColor(pos: string) {
   if (pos === "C") return "#FFD700";
@@ -23,15 +24,14 @@ type StatRow = {
 
 export default function StatsPage() {
   const router = useRouter();
+  const { selectedTeam } = useTeam();
 
   const [loading, setLoading] = useState(true);
   const [userEmail, setUserEmail] = useState<string | null>(null);
-  const [playerId, setPlayerId] = useState<string | null>(null);
-  const [teamId, setTeamId] = useState<string | null>(null);
 
   const [playerNumber, setPlayerNumber] = useState<number | null>(null);
   const [playerPosition, setPlayerPosition] = useState<string | null>(null);
-  const [profilePic, setProfilePic] = useState<string | null>(null); // ⭐ NEW
+  const [profilePic, setProfilePic] = useState<string | null>(null);
 
   const [personalStats, setPersonalStats] = useState({
     points: 0,
@@ -81,39 +81,31 @@ export default function StatsPage() {
 
       setUserEmail(session.user.email!);
 
-      // 1. Find player + team
-      const { data: ptRow } = await supabase
-        .from("player_teams")
-        .select("player_id, team_id")
-        .eq("user_id", session.user.id)
-        .single();
+      // ⭐ WAIT FOR TEAM SWITCHER TO LOAD
+      if (!selectedTeam) return;
 
-      if (!ptRow) {
-        setLoading(false);
-        return;
-      }
+      const playerId = selectedTeam.player_id;
+      const teamId = selectedTeam.id;
+      const leagueId = selectedTeam.leagueId;
 
-      setPlayerId(ptRow.player_id);
-      setTeamId(ptRow.team_id);
-
-      // 2. Player info (⭐ UPDATED to include profile_pic_url)
+      // 1. Player info
       const { data: playerInfo } = await supabase
         .from("players")
         .select("number, position, profile_pic_url")
-        .eq("id", ptRow.player_id)
-        .single();
+        .eq("id", playerId)
+        .maybeSingle();
 
       if (playerInfo) {
         setPlayerNumber(playerInfo.number);
         setPlayerPosition(playerInfo.position);
-        setProfilePic(playerInfo.profile_pic_url); // ⭐ NEW
+        setProfilePic(playerInfo.profile_pic_url);
       }
 
-      // 3. Personal stats
+      // 2. Personal stats
       const { data: personal } = await supabase
         .from("season_stats")
         .select("points, goals, assists, pim")
-        .eq("player_id", ptRow.player_id)
+        .eq("player_id", playerId)
         .eq("season", "2026a")
         .maybeSingle();
 
@@ -121,11 +113,11 @@ export default function StatsPage() {
         setPersonalStats(personal);
       }
 
-      // 4. Team stats
+      // 3. Team stats
       const { data: teamPlayers } = await supabase
         .from("season_stats")
         .select("player_id, points, goals, assists, pim, players(name)")
-        .eq("team_id", ptRow.team_id)
+        .eq("team_id", teamId)
         .eq("season", "2026a");
 
       setTeamStats(
@@ -139,7 +131,7 @@ export default function StatsPage() {
         })) || []
       );
 
-      // 5. League stats
+      // 4. League stats
       const { data: leaguePlayers } = await supabase
         .from("season_stats")
         .select("player_id, points, goals, assists, pim, players(name)")
@@ -160,26 +152,25 @@ export default function StatsPage() {
     }
 
     loadData();
-  }, [router]);
+  }, [router, selectedTeam]);
+
+  if (!selectedTeam) {
+    return (
+      <main className="center-screen">
+        <p>Loading team...</p>
+      </main>
+    );
+  }
 
   if (loading) {
     return (
       <main className="center-screen">
-        <p>Loading...</p>
+        <p>Loading stats...</p>
       </main>
     );
   }
 
-  if (!playerId) {
-    return (
-      <main style={{ padding: "2rem", textAlign: "center" }}>
-        <h1 style={{ fontSize: "1.6rem", fontWeight: 700 }}>Stats</h1>
-        <p style={{ marginTop: "1rem", opacity: 0.7 }}>
-          No player profile found for this account yet.
-        </p>
-      </main>
-    );
-  }
+  const playerId = selectedTeam.player_id;
 
   return (
     <main
@@ -189,7 +180,6 @@ export default function StatsPage() {
         margin: "0 auto",
       }}
     >
-      {/* ⭐ REAL PROFILE PICTURE (replaces placeholder) */}
       <img
         src={profilePic || "https://via.placeholder.com/120?text=?"}
         alt="Profile"
@@ -205,7 +195,6 @@ export default function StatsPage() {
         }}
       />
 
-      {/* Name + Number + Position Pill */}
       <h1
         style={{
           fontSize: "1.6rem",
@@ -215,6 +204,7 @@ export default function StatsPage() {
       >
         {userEmail?.split("@")[0]}
       </h1>
+
       <p
         className="opacity-70"
         style={{ marginTop: "0.25rem", textAlign: "center" }}
@@ -242,7 +232,6 @@ export default function StatsPage() {
         )}
       </p>
 
-      {/* Everything below this point is unchanged */}
       {/* PERSONAL STATS */}
       <section style={{ marginTop: "2rem" }}>
         <div
@@ -313,7 +302,6 @@ export default function StatsPage() {
             background: "var(--surface)",
           }}
         >
-          {/* Sticky Header */}
           <div
             style={{
               position: "sticky",
@@ -368,7 +356,6 @@ export default function StatsPage() {
             })}
           </div>
 
-          {/* Rows */}
           {sortData(teamStats, teamSortField, teamSortDir).map((player) => {
             const isCurrent = player.player_id === playerId;
             return (
@@ -423,7 +410,6 @@ export default function StatsPage() {
             background: "var(--surface)",
           }}
         >
-          {/* Sticky Header */}
           <div
             style={{
               position: "sticky",
@@ -478,7 +464,6 @@ export default function StatsPage() {
             })}
           </div>
 
-          {/* Rows */}
           {sortData(leagueStats, leagueSortField, leagueSortDir).map(
             (player) => {
               const isCurrent = player.player_id === playerId;
