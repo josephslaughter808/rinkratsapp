@@ -217,7 +217,9 @@ export default function PlayerPage() {
               }}
             >
               <div style={{ fontSize: "1.6rem", fontWeight: 700 }}>
-                {seasonStats?.[stat.key] ?? 0}
+                {seasonStats?.[stat.key as keyof SeasonStats] ?? 0}
+
+
               </div>
               <div
                 className="opacity-70"
