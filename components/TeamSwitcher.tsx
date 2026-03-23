@@ -11,9 +11,6 @@ export default function TeamSwitcher() {
 
   const [player, setPlayer] = useState<any>(null);
 
-  // ============================================================
-  // ===============  REAL SUPABASE TEAM LOADING  ===============
-  // ============================================================
   useEffect(() => {
     async function loadTeams() {
       const { data: sessionData } = await supabase.auth.getSession();
@@ -24,41 +21,57 @@ export default function TeamSwitcher() {
         return;
       }
 
-      // Load team memberships
-      const { data: memberships } = await supabase
+      // Load ALL teams for this user
+      const { data: memberships, error } = await supabase
         .from("player_teams")
         .select(`
           player_id,
           role,
-          sub_expires_at,
           teams (
             id,
             name,
-            logo_url
+            logo_url,
+            league_id,
+            leagues (
+              id,
+              name,
+              logo_url
+            )
           )
         `)
         .eq("user_id", user.id);
 
-      if (!memberships) {
+      if (error) {
+        console.error("Team load error:", error);
+        setLoading(false);
+        return;
+      }
+
+      if (!memberships || memberships.length === 0) {
         setTeams([]);
         setLoading(false);
         return;
       }
 
+      // Map teams cleanly
       const mappedTeams = memberships.map((row: any) => ({
         id: row.teams?.id,
         name: row.teams?.name,
-        leagueLogo: row.teams?.logo_url,
+        teamLogo: row.teams?.logo_url,
+        leagueId: row.teams?.league_id,
+        leagueName: row.teams?.leagues?.name,
+        leagueLogo: row.teams?.leagues?.logo_url,
         player_id: row.player_id,
       }));
 
       setTeams(mappedTeams);
 
-      if (mappedTeams.length > 0) {
+      // Set default selected team
+      if (!selectedTeam) {
         setSelectedTeam(mappedTeams[0]);
       }
 
-      // Load player info (name, number, position, profile picture)
+      // Load player info ONCE
       const { data: playerData } = await supabase
         .from("players")
         .select("name, number, position, profile_pic_url")
@@ -66,14 +79,12 @@ export default function TeamSwitcher() {
         .single();
 
       setPlayer(playerData);
-
       setLoading(false);
     }
 
     loadTeams();
   }, []);
 
-  // Prevent empty bar flash
   if (loading || !selectedTeam || !player) {
     return (
       <div
@@ -119,20 +130,18 @@ export default function TeamSwitcher() {
             minWidth: 0,
           }}
         >
-          {/* ⭐ REAL PROFILE PICTURE (replaces placeholder) */}
           <img
             src={player.profile_pic_url || "https://via.placeholder.com/60?text=?"}
             alt="Profile"
             style={{
-              width: "60px",   // ← adjust size here
-              height: "60px",  // ← adjust size here
+              width: "60px",
+              height: "60px",
               borderRadius: "50%",
               objectFit: "cover",
               flexShrink: 0,
             }}
           />
 
-          {/* REAL PLAYER NAME + NUMBER + POSITION */}
           <div style={{ lineHeight: "1.1", whiteSpace: "nowrap" }}>
             <div style={{ fontSize: "0.9rem", fontWeight: 600 }}>
               {player.name}
@@ -143,7 +152,7 @@ export default function TeamSwitcher() {
           </div>
         </div>
 
-        {/* CENTER — TEAM NAME + DOWN ARROW */}
+        {/* CENTER — TEAM NAME */}
         <div
           style={{
             position: "absolute",
@@ -171,7 +180,7 @@ export default function TeamSwitcher() {
           </span>
         </div>
 
-        {/* RIGHT — LEAGUE LOGO (unchanged) */}
+        {/* RIGHT — LEAGUE LOGO */}
         <div
           style={{
             minWidth: "40px",
@@ -188,7 +197,6 @@ export default function TeamSwitcher() {
               height: "60px",
               borderRadius: "50%",
               objectFit: "cover",
-              opacity: 1,
             }}
           />
         </div>
