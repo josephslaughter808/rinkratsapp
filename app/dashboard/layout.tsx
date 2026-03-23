@@ -3,28 +3,34 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import TeamSwitcher from "../../components/TeamSwitcher";
-
-// ⭐ ADD THIS IMPORT
 import { TeamProvider } from "@/context/TeamContext";
+
+// SVG ICON IMPORTS
+import HomeIcon from "@/icons/home.svg";
+import StatsIcon from "@/icons/stats.svg";
+import FeedIcon from "@/icons/feed.svg";
+import FilmIcon from "@/icons/film.svg";
+import DraftIcon from "@/icons/draft.svg";
+import ChatIcon from "@/icons/chat.svg";
+import ProfileIcon from "@/icons/profile.svg";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
-  // ⭐ FIXED — remove leading slash
-  const hideNav = pathname.startsWith("dashboard/draft");
+  // FIXED: pathname always starts with "/"
+  const hideNav = pathname.startsWith("/dashboard/draft");
 
   const navItems = [
-    { href: "/dashboard", label: "Home", icon: "🏠" },
-    { href: "/dashboard/stats", label: "Stats", icon: "📊" },
-    { href: "/dashboard/feed", label: "Feed", icon: "📣" },
-    { href: "/dashboard/film", label: "Film", icon: "🎥" },
-    { href: "/dashboard/draft", label: "Draft", icon: "🧩" },
-    { href: "/dashboard/chat", label: "Chat", icon: "💬" },
-    { href: "/dashboard/profile", label: "Profile", icon: "👤" },
+    { href: "/dashboard", label: "Home", icon: HomeIcon },
+    { href: "/dashboard/stats", label: "Stats", icon: StatsIcon },
+    { href: "/dashboard/feed", label: "Feed", icon: FeedIcon },
+    { href: "/dashboard/film", label: "Film", icon: FilmIcon },
+    { href: "/dashboard/draft", label: "Draft", icon: DraftIcon },
+    { href: "/dashboard/chat", label: "Chat", icon: ChatIcon },
+    { href: "/dashboard/profile", label: "Profile", icon: ProfileIcon },
   ];
 
   return (
-    // ⭐ WRAP THE ENTIRE DASHBOARD IN THE PROVIDER
     <TeamProvider>
       <div style={{ minHeight: "100vh", paddingBottom: hideNav ? "0px" : "80px" }}>
         
@@ -61,13 +67,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               zIndex: 100,
             }}
           >
-            {navItems.map((item) => {
-              const active = pathname === item.href;
+            {navItems.map(({ href, label, icon: Icon }) => {
+              const active = pathname === href;
 
               return (
                 <Link
-                  key={item.href}
-                  href={item.href}
+                  key={href}
+                  href={href}
                   className={`nav-item${active ? " active" : ""}`}
                   style={{
                     display: "flex",
@@ -75,11 +81,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     alignItems: "center",
                     textDecoration: "none",
                     fontSize: "0.8rem",
-                    color: "var(--text-muted)",
+                    color: active ? "var(--text)" : "var(--text-muted)",
                   }}
                 >
-                  <span style={{ fontSize: "1.4rem" }}>{item.icon}</span>
-                  {item.label}
+                  <Icon
+                    className="w-6 h-6"
+                    style={{
+                      color: active ? "var(--text)" : "var(--text-muted)",
+                    }}
+                  />
+                  {label}
                 </Link>
               );
             })}

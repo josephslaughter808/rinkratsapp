@@ -2,10 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import { useTeam } from "@/context/TeamContext";
 
 export default function TeamSwitcher() {
+  const { selectedTeam, setSelectedTeam } = useTeam();   // ⭐ GLOBAL CONTEXT
+
   const [teams, setTeams] = useState<any[]>([]);
-  const [selectedTeam, setSelectedTeam] = useState<any>(null);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -21,39 +23,20 @@ export default function TeamSwitcher() {
         return;
       }
 
-      // 1️⃣ Get ALL player rows for this user (Peaks + Bison)
-      const { data: playerRows } = await supabase
-        .from("players")
-        .select("id")
-        .eq("user_id", user.id);
-
-      if (!playerRows || playerRows.length === 0) {
-        setTeams([]);
-        setLoading(false);
-        return;
-      }
-
-      const playerIds = playerRows.map((p: any) => p.id);
-
-      // 2️⃣ Load all team memberships for those player IDs
+      // 1️⃣ Load all team memberships for this user
       const { data: memberships, error } = await supabase
         .from("player_teams")
         .select(`
           player_id,
           role,
-          teams (
+          teams:team_id (
             id,
             name,
             logo_url,
-            league_id,
-            leagues (
-              id,
-              name,
-              logo_url
-            )
+            league_id
           )
         `)
-        .in("player_id", playerIds);
+        .eq("user_id", user.id);
 
       if (error) {
         console.error("Team load error:", error);
@@ -67,25 +50,23 @@ export default function TeamSwitcher() {
         return;
       }
 
-      // 3️⃣ Map teams cleanly
+      // 2️⃣ Map teams cleanly
       const mappedTeams = memberships.map((row: any) => ({
         id: row.teams?.id,
         name: row.teams?.name,
         teamLogo: row.teams?.logo_url,
         leagueId: row.teams?.league_id,
-        leagueName: row.teams?.leagues?.name,
-        leagueLogo: row.teams?.leagues?.logo_url,
         player_id: row.player_id,
       }));
 
       setTeams(mappedTeams);
 
-      // 4️⃣ Set default selected team
+      // 3️⃣ Set default selected team (GLOBAL)
       if (!selectedTeam) {
         setSelectedTeam(mappedTeams[0]);
       }
 
-      // 5️⃣ Load player info for the selected team
+      // 4️⃣ Load player info for the selected team
       const { data: playerData } = await supabase
         .from("players")
         .select("name, number, position, profile_pic_url")
@@ -112,7 +93,7 @@ export default function TeamSwitcher() {
   }
 
   const handleSelect = (team: any) => {
-    setSelectedTeam(team);
+    setSelectedTeam(team);   // ⭐ GLOBAL UPDATE
     setOpen(false);
   };
 
@@ -204,7 +185,7 @@ export default function TeamSwitcher() {
           }}
         >
           <img
-            src={selectedTeam.leagueLogo}
+            src={selectedTeam.teamLogo}
             alt="league logo"
             style={{
               width: "60px",
