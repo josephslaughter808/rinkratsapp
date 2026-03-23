@@ -88,7 +88,7 @@ export default function PlayerPage() {
         );
       }
 
-      // 3. Game-by-game stats (simple, no joins)
+      // 3. Game-by-game stats
       const { data: games, error: gamesErr } = await supabase
         .from("game_stats")
         .select("id, game_id, goals, assists, pim, points")
@@ -190,8 +190,8 @@ export default function PlayerPage() {
         </span>
       </p>
 
-  {/* SEASON TOTALS */}
-  <section style={{ marginTop: "2rem" }}>
+      {/* SEASON TOTALS */}
+      <section style={{ marginTop: "2rem" }}>
         <div
           style={{
             display: "grid",
@@ -234,21 +234,7 @@ export default function PlayerPage() {
         </div>
       </section>
 
-      {/* GAME LOG */}
-      <section style={{ marginTop: "3rem" }}>
-        <h2
-          style={{
-            fontSize: "1.3rem",
-            fontWeight: 700,
-            marginBottom: "1rem",
-            textAlign: "left",
-          }}
-        >
-          Game Log
-        </h2>
-</section>
-
-{/* GAME CARDS */}
+      {/* GAME LOG + CARDS */}
       <section style={{ marginTop: "3rem" }}>
         <h2
           style={{
@@ -278,7 +264,7 @@ export default function PlayerPage() {
               marginBottom: "1rem",
             }}
           >
-            {/* TOP ROW: SCORE + DATE (placeholder for now) */}
+            {/* TOP ROW */}
             <div
               style={{
                 display: "flex",
@@ -329,7 +315,7 @@ export default function PlayerPage() {
               ))}
             </div>
 
-            {/* HIGHLIGHTS (placeholder) */}
+            {/* HIGHLIGHTS */}
             <div style={{ opacity: 0.7, fontSize: "0.85rem" }}>
               Highlights: (coming soon)
             </div>
