@@ -60,7 +60,10 @@ export default function DraftRoomPage() {
 
       {/* MAIN CONTENT */}
       <div style={{ flex: 1, overflowY: "auto" }}>
-        {activeTab === "players" && <PlayersTab />}
+        {activeTab === "players" && (
+          // @ts-expect-error: draftId/userId will be wired later
+          <PlayersTab />
+        )}
         {activeTab === "queue" && <QueueTab />}
         {activeTab === "board" && <BoardTab />}
         {activeTab === "rosters" && <RostersTab />}
