@@ -2,11 +2,10 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import TeamSwitcher from "../../components/TeamSwitcher";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-
-  // Hide the global nav ONLY inside /dashboard/draft
   const hideNav = pathname.startsWith("/dashboard/draft");
 
   const navItems = [
@@ -21,9 +20,25 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   return (
     <div style={{ minHeight: "100vh", paddingBottom: hideNav ? "0px" : "80px" }}>
+      
+      {!hideNav && (
+        <div
+          style={{
+            width: "100%",
+            background: "#0A1A2F",
+            padding: "1rem",
+            borderBottom: "1px solid #1f2937",
+            position: "sticky",
+            top: 0,
+            zIndex: 1000,
+          }}
+        >
+          <TeamSwitcher />
+        </div>
+      )}
+
       {children}
 
-      {/* GLOBAL NAV — hidden inside draft room */}
       {!hideNav && (
         <nav
           style={{

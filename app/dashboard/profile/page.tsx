@@ -6,38 +6,92 @@ import { useRouter } from "next/navigation";
 
 export default function ProfilePage() {
   const router = useRouter();
-  const [user, setUser] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
 
-  // Placeholder player info (later from DB)
-  const player = {
-    name: "Player Name",
-    number: 13,
-    position: "Forward",
-    team: "Provo Ice Wolves",
-    isCaptain: true, // placeholder
-  };
+  const [loading, setLoading] = useState(true);
+  const [playerId, setPlayerId] = useState<string | null>(null);
+  const [player, setPlayer] = useState<any>(null);
+  const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
-    async function loadUser() {
-      const { data } = await supabase.auth.getSession();
+    async function loadProfile() {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const session = sessionData?.session;
 
-      if (!data.session) {
+      if (!session) {
         router.push("/auth/login");
         return;
       }
 
-      setUser(data.session.user);
+      // 1. Find player_id from player_teams
+      const { data: ptRow } = await supabase
+        .from("player_teams")
+        .select("player_id")
+        .eq("user_id", session.user.id)
+        .single();
+
+      if (!ptRow) {
+        setLoading(false);
+        return;
+      }
+
+      setPlayerId(ptRow.player_id);
+
+      // 2. Load player info
+      const { data: playerData } = await supabase
+        .from("players")
+        .select("*")
+        .eq("id", ptRow.player_id)
+        .single();
+
+      setPlayer(playerData);
       setLoading(false);
     }
 
-    loadUser();
+    loadProfile();
   }, [router]);
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    router.push("/auth/login");
-  };
+  async function uploadAvatar(event: any) {
+    try {
+      setUploading(true);
+
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const fileExt = file.name.split(".").pop();
+      const fileName = `${playerId}.${fileExt}`;
+      const filePath = `avatars/${fileName}`;
+
+      // Upload to Supabase Storage (your bucket name)
+      const { error: uploadError } = await supabase.storage
+        .from("profile pictures")
+        .upload(filePath, file, { upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      // Get public URL
+      const { data: urlData } = supabase.storage
+        .from("profile pictures")
+        .getPublicUrl(filePath);
+
+      const publicUrl = urlData.publicUrl;
+
+      // Save URL to players table
+      await supabase
+        .from("players")
+        .update({ profile_pic_url: publicUrl })
+        .eq("id", playerId);
+
+      // Update UI
+      setPlayer((prev: any) => ({
+        ...prev,
+        profile_pic_url: publicUrl,
+      }));
+    } catch (error) {
+      console.error("Error uploading avatar:", error);
+    } finally {
+      setUploading(false);
+    }
+  }
 
   if (loading) {
     return (
@@ -47,153 +101,76 @@ export default function ProfilePage() {
     );
   }
 
+  if (!player) {
+    return (
+      <main style={{ padding: "2rem", textAlign: "center" }}>
+        <h1>Profile</h1>
+        <p>No player profile found.</p>
+      </main>
+    );
+  }
+
   return (
-    <main style={{ padding: "2rem", textAlign: "center" }}>
+    <main
+      style={{
+        padding: "1.5rem",
+        maxWidth: "600px",
+        margin: "0 auto",
+      }}
+    >
+      <h1 style={{ fontSize: "1.6rem", fontWeight: 700 }}>My Profile</h1>
+
       {/* Profile Picture */}
-      <div
-        style={{
-          width: "130px",
-          height: "130px",
-          borderRadius: "50%",
-          background: "var(--surface-light)",
-          margin: "0 auto",
-          marginBottom: "1rem",
-          border: "3px solid var(--accent-light)",
-        }}
-      ></div>
-
-      {/* Name + Number */}
-      <h1 style={{ fontSize: "1.8rem", fontWeight: 700 }}>
-        {player.name}
-      </h1>
-      <p className="opacity-70" style={{ marginTop: "0.25rem" }}>
-        #{player.number} • {player.position}
-      </p>
-
-      {/* Team */}
-      <p className="opacity-70" style={{ marginTop: "0.25rem" }}>
-        {player.team}
-      </p>
-
-      {/* Edit Profile */}
-      <button
-        style={{
-          marginTop: "1.5rem",
-          width: "100%",
-          padding: "0.75rem",
-          borderRadius: "var(--radius)",
-          background: "var(--accent)",
-          color: "white",
-          fontWeight: 600,
-          border: "none",
-        }}
-      >
-        Edit Profile
-      </button>
-
-      {/* Divider */}
-      <hr
-        style={{
-          margin: "2rem 0",
-          borderColor: "var(--surface-light)",
-        }}
-      />
-
-      {/* Account Info */}
-      <section style={{ textAlign: "left" }}>
-        <h2 style={{ fontSize: "1.2rem", fontWeight: 700 }}>Account</h2>
-
-        <div
+      <div style={{ marginTop: "1.5rem", textAlign: "center" }}>
+        <img
+          src={
+            player.profile_pic_url ||
+            "https://via.placeholder.com/150?text=No+Image"
+          }
+          alt="Profile"
           style={{
-            background: "var(--surface)",
-            padding: "1rem",
-            borderRadius: "var(--radius)",
-            marginTop: "1rem",
+            width: "140px",
+            height: "140px",
+            borderRadius: "50%",
+            objectFit: "cover",
+            border: "3px solid var(--accent-light)",
           }}
-        >
-          <p>Email</p>
-          <p className="opacity-70">{user.email}</p>
-        </div>
+        />
 
-        <button
-          onClick={handleLogout}
-          style={{
-            marginTop: "1.5rem",
-            width: "100%",
-            padding: "0.75rem",
-            borderRadius: "var(--radius)",
-            background: "var(--danger)",
-            color: "white",
-            fontWeight: 600,
-            border: "none",
-          }}
-        >
-          Log Out
-        </button>
-      </section>
-
-      {/* Captain Tools */}
-      {player.isCaptain && (
-        <>
-          <hr
+        <div style={{ marginTop: "1rem" }}>
+          <label
             style={{
-              margin: "2rem 0",
-              borderColor: "var(--surface-light)",
+              display: "inline-block",
+              padding: "0.5rem 1rem",
+              background: "var(--accent)",
+              color: "white",
+              borderRadius: "6px",
+              cursor: "pointer",
             }}
-          />
+          >
+            {uploading ? "Uploading..." : "Upload New Picture"}
+            <input
+              type="file"
+              accept="image/*"
+              onChange={uploadAvatar}
+              style={{ display: "none" }}
+            />
+          </label>
+        </div>
+      </div>
 
-          <section style={{ textAlign: "left" }}>
-            <h2 style={{ fontSize: "1.2rem", fontWeight: 700 }}>
-              Captain Tools
-            </h2>
-
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                gap: "1rem",
-                marginTop: "1rem",
-              }}
-            >
-              <button
-                style={{
-                  padding: "0.75rem",
-                  borderRadius: "var(--radius)",
-                  background: "var(--surface-light)",
-                  color: "white",
-                  border: "1px solid var(--accent-light)",
-                }}
-              >
-                Manage Team
-              </button>
-
-              <button
-                style={{
-                  padding: "0.75rem",
-                  borderRadius: "var(--radius)",
-                  background: "var(--surface-light)",
-                  color: "white",
-                  border: "1px solid var(--accent-light)",
-                }}
-              >
-                Add Stats
-              </button>
-
-              <button
-                style={{
-                  padding: "0.75rem",
-                  borderRadius: "var(--radius)",
-                  background: "var(--surface-light)",
-                  color: "white",
-                  border: "1px solid var(--accent-light)",
-                }}
-              >
-                Approve Players
-              </button>
-            </div>
-          </section>
-        </>
-      )}
+      {/* Player Info */}
+      <section style={{ marginTop: "2rem" }}>
+        <p>
+          <strong>Name:</strong> {player.name}
+        </p>
+        <p>
+          <strong>Number:</strong> #{player.number}
+        </p>
+        <p>
+          <strong>Position:</strong> {player.position}
+        </p>
+      </section>
     </main>
   );
 }

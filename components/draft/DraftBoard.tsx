@@ -26,13 +26,13 @@ export default function DraftBoard({ draftId }: Props) {
 
   useEffect(() => {
     const load = async () => {
-      const t = await fetch(`/api/draft/${draftId}/teams`).then(r => r.json());
-      const p = await fetch(`/api/draft/${draftId}/picks`).then(r => r.json());
+      const t: Team[] = await fetch(`/api/draft/${draftId}/teams`).then(r => r.json());
+      const p: Pick[] = await fetch(`/api/draft/${draftId}/picks`).then(r => r.json());
 
       setTeams(t);
       setPicks(p);
 
-      const maxRound = p.length ? Math.max(...p.map(x => x.round)) : 0;
+      const maxRound = p.length ? Math.max(...p.map((x: Pick) => x.round)) : 0;
       setRounds(maxRound);
     };
 

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabaseClient";
 import { useRouter } from "next/navigation";
 
+
 // TEMP MOCK DATA — replace with Supabase later
 const LEAGUES: Record<string, string> = {
   "Desert Storm": "Rink Rats",

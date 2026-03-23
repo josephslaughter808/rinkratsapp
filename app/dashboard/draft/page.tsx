@@ -6,11 +6,28 @@ import PlayersTab from "@/components/draft/PlayersTab";
 import QueueTab from "@/components/draft/QueueTab";
 import BoardTab from "@/components/draft/BoardTab";
 import RostersTab from "@/components/draft/RostersTab";
+import DraftPickRail from "@/components/draft/DraftPickRail";
 
 type DraftTab = "players" | "queue" | "board" | "rosters";
 
 export default function DraftRoomPage() {
   const [activeTab, setActiveTab] = useState<DraftTab>("players");
+
+  // TEMP MOCK DATA — replace with real API data later
+  const teams = [
+    { id: "1", name: "Team 1" },
+    { id: "2", name: "Team 2" },
+    { id: "3", name: "Team 3" },
+  ];
+
+  const picks = [
+    { id: "p1", round: 1, overall: 1, team_id: "1", player_name: null },
+    { id: "p2", round: 1, overall: 2, team_id: "2", player_name: null },
+    { id: "p3", round: 1, overall: 3, team_id: "3", player_name: null },
+    { id: "p4", round: 2, overall: 4, team_id: "1", player_name: null },
+  ];
+
+  const pickNumber = 1; // TEMP — will come from server logic later
 
   return (
     <div
@@ -25,17 +42,20 @@ export default function DraftRoomPage() {
       {/* HEADER */}
       <DraftHeader
         currentTeam="Team 1"
-        pickNumber={1}
+        pickNumber={pickNumber}
         round={1}
         totalRounds={10}
         timeLeft={60}
         onExit={() => {
-          // Temporary behavior for testing
           alert("Exit draft clicked");
-
-          // Later:
-          // router.push("/dashboard");
         }}
+      />
+
+      {/* PICK RAIL */}
+      <DraftPickRail
+        teams={teams}
+        picks={picks}
+        currentPickOverall={pickNumber}
       />
 
       {/* MAIN CONTENT */}
