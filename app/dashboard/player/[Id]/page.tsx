@@ -190,8 +190,8 @@ export default function PlayerPage() {
         </span>
       </p>
 
-      {/* SEASON TOTALS */}
-      <section style={{ marginTop: "2rem" }}>
+  {/* SEASON TOTALS */}
+  <section style={{ marginTop: "2rem" }}>
         <div
           style={{
             display: "grid",
@@ -234,7 +234,21 @@ export default function PlayerPage() {
         </div>
       </section>
 
-      {/* GAME CARDS */}
+      {/* GAME LOG */}
+      <section style={{ marginTop: "3rem" }}>
+        <h2
+          style={{
+            fontSize: "1.3rem",
+            fontWeight: 700,
+            marginBottom: "1rem",
+            textAlign: "left",
+          }}
+        >
+          Game Log
+        </h2>
+</section>
+
+{/* GAME CARDS */}
       <section style={{ marginTop: "3rem" }}>
         <h2
           style={{
