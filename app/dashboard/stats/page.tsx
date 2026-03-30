@@ -567,6 +567,7 @@ export default function StatsPage() {
           style={{
             display: "grid",
             gap: "1rem",
+            justifyItems: "center",
           }}
         >
           <div
@@ -574,7 +575,10 @@ export default function StatsPage() {
               display: "grid",
               gridTemplateColumns: "96px minmax(0, 1fr)",
               gap: "0.9rem",
-              alignItems: "start",
+              alignItems: "center",
+              justifyContent: "center",
+              width: "fit-content",
+              maxWidth: "100%",
             }}
           >
             <img
@@ -589,7 +593,15 @@ export default function StatsPage() {
               }}
             />
 
-            <div style={{ minWidth: 0, paddingTop: "0.15rem" }}>
+            <div
+              style={{
+                minWidth: 0,
+                paddingTop: "0.15rem",
+                textAlign: "center",
+                display: "grid",
+                justifyItems: "center",
+              }}
+            >
               <div style={{ color: "var(--accent-light)", marginBottom: "0.15rem" }}>
                 {selectedTeam.name}
               </div>
@@ -600,7 +612,7 @@ export default function StatsPage() {
             </div>
           </div>
 
-          <div>
+          <div style={{ textAlign: "center" }}>
             <h1 style={{ fontSize: "1.85rem", lineHeight: 1.05 }}>
               {userEmail?.split("@")[0]}
             </h1>
@@ -609,6 +621,7 @@ export default function StatsPage() {
                 marginTop: "0.45rem",
                 display: "flex",
                 alignItems: "center",
+                justifyContent: "center",
                 gap: "0.45rem",
                 flexWrap: "wrap",
                 color: "var(--text-muted)",
