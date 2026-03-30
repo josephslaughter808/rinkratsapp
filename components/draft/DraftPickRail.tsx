@@ -152,7 +152,7 @@ function getPositionOutline(position?: string | null) {
   if (normalized === "LW" || normalized === "RW" || normalized === "W")
     return "#60a5fa";
   if (normalized === "D" || normalized === "LD" || normalized === "RD")
-    return "#f87171";
+    return "#b91c1c";
   if (normalized === "G") return "#f8fafc";
   return "rgba(148, 163, 184, 0.5)";
 }
