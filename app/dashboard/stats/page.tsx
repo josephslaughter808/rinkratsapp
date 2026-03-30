@@ -1085,7 +1085,7 @@ const sortableHeaderStyle: React.CSSProperties = {
 
 const tableHeaderStickyStyle: React.CSSProperties = {
   position: "sticky",
-  top: "var(--app-topbar-height)",
+  top: "calc(var(--app-topbar-height) - 12px)",
   zIndex: 30,
   background: "rgba(13, 24, 42, 0.98)",
   boxShadow: "0 8px 20px rgba(1, 5, 16, 0.28)",
