@@ -13,7 +13,7 @@ export default function BoardTab({
   teams: Team[];
   players: DraftPlayer[];
 }) {
-  const [viewMode, setViewMode] = useState<"round" | "roster">("roster");
+  const [viewMode, setViewMode] = useState<"round" | "roster">("round");
 
   return (
     <div style={{ display: "grid", gap: "0.9rem" }}>

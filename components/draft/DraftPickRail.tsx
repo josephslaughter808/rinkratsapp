@@ -60,12 +60,12 @@ export default function DraftPickRail({
         width: "100%",
         overflowX: "auto",
         whiteSpace: "nowrap",
-        padding: "0.75rem 0",
+        padding: "0.35rem 0 0.4rem",
         background: "#0A0A0A",
         borderBottom: "1px solid #222",
       }}
     >
-      <div style={{ display: "flex", gap: "0.75rem", padding: "0 1rem" }}>
+      <div style={{ display: "flex", gap: "0.32rem", padding: "0 0.5rem" }}>
         {picks.map((pick) => {
           const team = getTeam(pick.teamId);
           const isCurrent = pick.overall === currentPickOverall;
@@ -78,27 +78,27 @@ export default function DraftPickRail({
               key={pick.id}
               data-pick={pick.overall}
               style={{
-                width: 148,
-                minHeight: 156,
-                borderRadius: 18,
+                width: 104,
+                minHeight: 92,
+                borderRadius: 8,
                 background: isCurrent
                   ? "linear-gradient(180deg, rgba(249,115,22,0.95), rgba(194,65,12,0.95))"
-                  : "linear-gradient(180deg, rgba(15,23,42,0.94), rgba(15,23,42,0.76))",
+                  : "linear-gradient(180deg, rgba(28,28,32,0.98), rgba(21,21,24,0.98))",
                 border: hasPlayer
                   ? `2px solid ${playerOutline}`
                   : isYourNext
                   ? "2px solid rgba(34,197,94,0.9)"
-                  : "1px solid rgba(148, 163, 184, 0.16)",
+                  : "1px solid rgba(148, 163, 184, 0.12)",
                 display: "flex",
                 flexDirection: "column",
                 alignItems: "center",
-                padding: "0.7rem",
+                padding: "0.3rem 0.32rem 0.36rem",
                 color: "white",
                 flexShrink: 0,
                 boxShadow: isCurrent
-                  ? "0 16px 36px rgba(194,65,12,0.28)"
+                  ? "0 10px 22px rgba(194,65,12,0.2)"
                   : hasPlayer
-                  ? `0 10px 24px ${withAlpha(playerOutline, 0.18)}`
+                  ? `0 6px 16px ${withAlpha(playerOutline, 0.16)}`
                   : "none",
                 transition: "transform 180ms ease, border-color 180ms ease",
               }}
@@ -107,9 +107,10 @@ export default function DraftPickRail({
                 style={{
                   width: "100%",
                   textAlign: "center",
-                  fontSize: "0.76rem",
+                  fontSize: "0.64rem",
                   fontWeight: 700,
                   color: "rgba(255,255,255,0.82)",
+                  lineHeight: 1.1,
                 }}
               >
                 Pick {pick.round} ({pick.overall})
@@ -169,50 +170,58 @@ function withAlpha(hex: string, alpha: number) {
 
 function teamLogoStyle(accent?: string): React.CSSProperties {
   return {
-    width: 64,
-    height: 64,
+    width: 34,
+    height: 34,
     borderRadius: "999px",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    marginTop: "0.65rem",
+    marginTop: "0.32rem",
     background: `radial-gradient(circle at top, ${withAlpha(accent || "#f97316", 0.34)}, rgba(15,23,42,0.96) 68%)`,
     border: `2px solid ${withAlpha(accent || "#f97316", 0.86)}`,
-    boxShadow: `0 10px 24px ${withAlpha(accent || "#f97316", 0.18)}`,
+    boxShadow: `0 6px 14px ${withAlpha(accent || "#f97316", 0.16)}`,
     textAlign: "center",
   };
 }
 
 const teamNameUnderStyle: React.CSSProperties = {
-  marginTop: "0.8rem",
+  marginTop: "0.38rem",
   textAlign: "center",
-  fontSize: "0.82rem",
+  fontSize: "0.67rem",
   fontWeight: 700,
   lineHeight: 1.15,
+  display: "-webkit-box",
+  WebkitLineClamp: 2,
+  WebkitBoxOrient: "vertical",
+  overflow: "hidden",
 };
 
 const playerPhotoStyle: React.CSSProperties = {
-  width: 66,
-  height: 66,
+  width: 38,
+  height: 38,
   borderRadius: "999px",
   objectFit: "cover",
-  marginTop: "0.65rem",
+  marginTop: "0.28rem",
   background: "rgba(255,255,255,0.08)",
   border: "2px solid rgba(255,255,255,0.12)",
 };
 
 const pickedPlayerNameStyle: React.CSSProperties = {
-  marginTop: "0.55rem",
+  marginTop: "0.28rem",
   textAlign: "center",
-  fontSize: "0.8rem",
+  fontSize: "0.66rem",
   fontWeight: 700,
   lineHeight: 1.1,
+  display: "-webkit-box",
+  WebkitLineClamp: 2,
+  WebkitBoxOrient: "vertical",
+  overflow: "hidden",
 };
 
 const pickedPlayerMetaStyle: React.CSSProperties = {
-  marginTop: "0.2rem",
+  marginTop: "0.14rem",
   textAlign: "center",
-  fontSize: "0.72rem",
+  fontSize: "0.6rem",
   color: "rgba(255,255,255,0.76)",
   fontWeight: 600,
 };

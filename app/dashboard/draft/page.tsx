@@ -74,50 +74,26 @@ export default function DraftRoomPage() {
 
       <div
         style={{
-          padding: "1rem",
+          padding: "0.65rem 0.55rem 1rem",
           display: "grid",
-          gap: "1rem",
+          gap: "0.75rem",
           flex: 1,
         }}
       >
-        <section className="glass-panel" style={{ padding: "1rem" }}>
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              gap: "1rem",
-              flexWrap: "wrap",
-              marginBottom: "1rem",
-            }}
-          >
-            <div>
-              <div style={{ color: "var(--accent-light)", marginBottom: "0.25rem" }}>
-                {draftConfig.title}
-              </div>
-              <h1 style={{ fontSize: "2rem" }}>Draft room</h1>
-            </div>
-            <div style={{ color: "var(--text-muted)", maxWidth: "430px", textAlign: "right" }}>
-              Players join leagues by code, stay unassigned until draft or manager
-              placement, and move into team rosters as picks are finalized.
-            </div>
-          </div>
-
-          {activeTab === "players" && (
-            <PlayersTab
-              players={draftPlayers}
-              queuedPlayerIds={draftQueue}
-              draftedPlayerIds={draftedPlayerIds}
-            />
-          )}
-          {activeTab === "queue" && <QueueTab players={queuePlayers} />}
-          {activeTab === "board" && (
-            <BoardTab picks={draftPicks} teams={teams} players={draftPlayers} />
-          )}
-          {activeTab === "rosters" && (
-            <RostersTab teams={teams} picks={draftPicks} players={draftPlayers} />
-          )}
-        </section>
+        {activeTab === "players" && (
+          <PlayersTab
+            players={draftPlayers}
+            queuedPlayerIds={draftQueue}
+            draftedPlayerIds={draftedPlayerIds}
+          />
+        )}
+        {activeTab === "queue" && <QueueTab players={queuePlayers} />}
+        {activeTab === "board" && (
+          <BoardTab picks={draftPicks} teams={teams} players={draftPlayers} />
+        )}
+        {activeTab === "rosters" && (
+          <RostersTab teams={teams} picks={draftPicks} players={draftPlayers} />
+        )}
       </div>
 
       <nav

@@ -14,7 +14,8 @@ export default function PlayersTab({
 }) {
   const [positionFilter, setPositionFilter] = useState<string>("All");
   const [tierFilter, setTierFilter] = useState<string>("All");
-  const yourPickIndex = 5;
+  const [handFilter, setHandFilter] = useState<string>("All");
+  const yourPickIndex = 2;
 
   const visiblePlayers = players
     .filter((player) => {
@@ -32,130 +33,133 @@ export default function PlayersTab({
         return false;
       }
       if (tierFilter !== "All" && player.tier !== tierFilter) return false;
+      if (handFilter !== "All" && player.shoots !== handFilter) return false;
       return true;
     })
     .sort((a, b) => b.lastSeasonPoints - a.lastSeasonPoints);
 
   return (
-    <div style={{ display: "grid", gap: "0.9rem" }}>
-      <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) 152px", gap: "0.7rem" }}>
-        <label style={selectWrapStyle}>
-          <span style={selectLabelStyle}>Position</span>
-          <select
-            value={positionFilter}
-            onChange={(event) => setPositionFilter(event.target.value)}
-            style={selectStyle}
-          >
-            {[
-              { value: "All", label: "All Positions" },
-              { value: "Offense", label: "All Offense" },
-              { value: "Defense", label: "All Defense" },
-              { value: "C", label: "Center" },
-              { value: "LW", label: "Left Wing" },
-              { value: "RW", label: "Right Wing" },
-              { value: "D", label: "Defense" },
-              { value: "G", label: "Goalie" },
-            ].map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </label>
+    <div style={{ display: "grid", gap: "0.75rem" }}>
+      <div style={filtersRowStyle}>
+        <select
+          value={positionFilter}
+          onChange={(event) => setPositionFilter(event.target.value)}
+          style={compactSelectStyle}
+          aria-label="Filter by position"
+        >
+          {[
+            { value: "All", label: "All Pos" },
+            { value: "Offense", label: "All Off" },
+            { value: "Defense", label: "All Def" },
+            { value: "C", label: "C" },
+            { value: "LW", label: "LW" },
+            { value: "RW", label: "RW" },
+            { value: "D", label: "D" },
+            { value: "G", label: "G" },
+          ].map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
 
-        <label style={selectWrapStyle}>
-          <span style={selectLabelStyle}>Level</span>
-          <select
-            value={tierFilter}
-            onChange={(event) => setTierFilter(event.target.value)}
-            style={selectStyle}
-          >
-            {["All", "R", "D", "C", "B", "A", "E"].map((value) => (
-              <option key={value} value={value}>
-                {value === "All" ? "All Levels" : value}
-              </option>
-            ))}
-          </select>
-        </label>
+        <select
+          value={handFilter}
+          onChange={(event) => setHandFilter(event.target.value)}
+          style={compactSelectStyle}
+          aria-label="Filter by handedness"
+        >
+          {[
+            { value: "All", label: "Hand" },
+            { value: "L", label: "Left" },
+            { value: "R", label: "Right" },
+          ].map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+
+        <select
+          value={tierFilter}
+          onChange={(event) => setTierFilter(event.target.value)}
+          style={compactSelectStyle}
+          aria-label="Filter by level"
+        >
+          {["All", "R", "D", "C", "B", "A", "E"].map((value) => (
+            <option key={value} value={value}>
+              {value === "All" ? "Level" : value}
+            </option>
+          ))}
+        </select>
+
+        <button
+          type="button"
+          onClick={() => {
+            setPositionFilter("All");
+            setHandFilter("All");
+            setTierFilter("All");
+          }}
+          style={resetButtonStyle}
+        >
+          Reset
+        </button>
       </div>
 
-      {visiblePlayers.map((player, index) => {
-        const isQueued = queuedPlayerIds.includes(player.id);
+      <div style={tableShellStyle}>
+        <div style={headerRowStyle}>
+          <div style={rankHeaderStyle}>RK</div>
+          <div style={playerHeaderStyle}>PLAYER</div>
+          <div style={numberHeaderStyle}>ADP</div>
+          <div style={numberHeaderStyle}>PROJ</div>
+          <div style={queueHeaderStyle} />
+        </div>
 
-        return (
-          <div key={player.id} style={{ display: "grid", gap: "0.55rem" }}>
-            {index === yourPickIndex ? (
-              <div style={pickMarkerStyle}>
-                <span style={pickMarkerTagStyle}>Your Pick (R2,P8)</span>
-              </div>
-            ) : null}
+        {visiblePlayers.map((player, index) => {
+          const isQueued = queuedPlayerIds.includes(player.id);
 
-            <div
-              style={{
-                display: "flex",
-                gap: "0.85rem",
-                alignItems: "center",
-                padding: "0.95rem",
-                borderRadius: "18px",
-                border: "1px solid rgba(148, 163, 184, 0.16)",
-                background:
-                  "linear-gradient(180deg, rgba(15,23,42,0.92), rgba(15,23,42,0.76))",
-              }}
-            >
-              <img
-                src={`https://api.dicebear.com/9.x/adventurer-neutral/svg?seed=${encodeURIComponent(player.name)}`}
-                alt={player.name}
-                style={avatarStyle}
-              />
-
-              <div style={{ minWidth: 0, flex: 1 }}>
-                <div style={{ fontSize: "1.02rem", fontWeight: 700, lineHeight: 1.1 }}>
-                  {player.name}
+          return (
+            <div key={player.id} style={{ display: "grid", gap: "0.35rem" }}>
+              {index === yourPickIndex ? (
+                <div style={pickMarkerStyle}>
+                  <span style={pickMarkerTagStyle}>Your Pick (R1,P3)</span>
                 </div>
-                <div style={{ marginTop: "0.25rem", color: "var(--text-muted)", fontSize: "0.86rem" }}>
-                  #{player.number} • {player.position}
+              ) : null}
+
+              <div style={playerRowStyle}>
+                <div style={rankCellStyle}>{index + 1}</div>
+
+                <div style={playerCellStyle}>
+                  <div style={playerNameStyle}>{player.name}</div>
+                  <div style={playerMetaLineStyle}>
+                    <span>{player.previousTeam}</span>
+                    <PositionBadge position={player.position} />
+                    <MiniTag label={formatLevel(player.tier)} />
+                    <MiniTag label={player.shoots} />
+                  </div>
                 </div>
 
-                <div style={statsBarStyle}>
-                  <StatPill label="Lvl" value={formatLevel(player.tier)} />
-                  <StatPill label="Hand" value={player.shoots} />
-                  <StatPill label="Pts" value={player.lastSeasonPoints} />
-                  <StatPill
-                    label="+/-"
-                    value={player.plusMinus > 0 ? `+${player.plusMinus}` : player.plusMinus}
-                  />
-                </div>
-              </div>
+                <div style={numberCellStyle}>0.0</div>
+                <div style={numberCellStyle}>{player.lastSeasonPoints}</div>
 
-              <div style={{ display: "grid", gap: "0.35rem", justifyItems: "end" }}>
-                <button style={queueButtonStyle(isQueued)}>
-                  Queue
-                </button>
-                <div style={{ color: "var(--text-muted)", fontSize: "0.72rem", textAlign: "right" }}>
-                  {player.previousTeam}
+                <div style={queueCellStyle}>
+                  <button style={queueButtonStyle(isQueued)}>Queue</button>
                 </div>
               </div>
             </div>
-          </div>
-        );
-      })}
+          );
+        })}
+      </div>
     </div>
   );
 }
 
-function StatPill({
-  label,
-  value,
-}: {
-  label: string;
-  value: string | number;
-}) {
-  return (
-    <div style={statPillStyle}>
-      <div style={statPillLabelStyle}>{label}</div>
-      <div style={statPillValueStyle}>{value}</div>
-    </div>
-  );
+function PositionBadge({ position }: { position: string }) {
+  return <span style={positionBadgeStyle(position)}>{position}</span>;
+}
+
+function MiniTag({ label }: { label: string }) {
+  return <span style={miniTagStyle}>{label}</span>;
 }
 
 function formatLevel(level: DraftPlayer["tier"]) {
@@ -168,104 +172,193 @@ function formatLevel(level: DraftPlayer["tier"]) {
 function queueButtonStyle(queued: boolean): React.CSSProperties {
   return {
     borderRadius: "999px",
-    padding: "0.46rem 0.95rem",
+    padding: "0.36rem 0.88rem",
     display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",
-    background: queued
-      ? "rgba(249, 115, 22, 0.18)"
-      : "rgba(255,255,255,0.02)",
+    background: queued ? "rgba(249, 115, 22, 0.16)" : "rgba(255,255,255,0.02)",
     border: `1px solid ${
-      queued
-        ? "rgba(249,115,22,0.34)"
-        : "rgba(255,255,255,0.54)"
+      queued ? "rgba(249,115,22,0.34)" : "rgba(255,255,255,0.54)"
     }`,
     color: "white",
-    fontSize: "0.82rem",
+    fontSize: "0.78rem",
     fontWeight: 700,
-    minWidth: "82px",
+    minWidth: "78px",
   };
 }
 
-const selectWrapStyle: React.CSSProperties = {
-  display: "grid",
-  gap: "0.25rem",
+const filtersRowStyle: React.CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  gap: "0.5rem",
+  flexWrap: "wrap",
+  padding: "0 0.15rem",
 };
 
-const selectLabelStyle: React.CSSProperties = {
-  color: "var(--text-muted)",
-  fontSize: "0.72rem",
-  letterSpacing: "0.06em",
-  textTransform: "uppercase",
-};
-
-const selectStyle: React.CSSProperties = {
-  width: "100%",
-  background: "var(--surface-light)",
-  color: "var(--text)",
-  border: "1px solid var(--line)",
+const compactSelectStyle: React.CSSProperties = {
+  minWidth: "92px",
+  background: "rgba(31, 41, 55, 0.95)",
+  color: "rgba(255,255,255,0.92)",
+  border: "1px solid rgba(148,163,184,0.18)",
   borderRadius: "999px",
-  padding: "0.7rem 0.9rem",
+  padding: "0.52rem 1.8rem 0.52rem 0.75rem",
+  fontSize: "0.8rem",
+  fontWeight: 600,
   appearance: "none",
   WebkitAppearance: "none",
 };
 
-const avatarStyle: React.CSSProperties = {
-  width: "58px",
-  height: "58px",
-  borderRadius: "999px",
-  objectFit: "cover",
-  border: "1px solid rgba(148,163,184,0.22)",
-  background: "linear-gradient(180deg, rgba(30,41,59,0.95), rgba(15,23,42,0.95))",
-  flexShrink: 0,
+const resetButtonStyle: React.CSSProperties = {
+  background: "transparent",
+  border: "none",
+  color: "#60a5fa",
+  fontSize: "0.82rem",
+  fontWeight: 600,
+  padding: "0.4rem 0.25rem",
 };
 
-const statsBarStyle: React.CSSProperties = {
+const tableShellStyle: React.CSSProperties = {
   display: "grid",
-  gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
-  gap: "0.45rem",
-  marginTop: "0.7rem",
+  gap: "0.15rem",
+  borderTop: "1px solid rgba(148,163,184,0.14)",
 };
 
-const statPillStyle: React.CSSProperties = {
-  padding: "0.5rem 0.28rem",
-  borderRadius: "12px",
-  background: "rgba(255,255,255,0.03)",
-  border: "1px solid rgba(148,163,184,0.12)",
+const headerRowStyle: React.CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "38px minmax(0, 1fr) 56px 56px 86px",
+  alignItems: "center",
+  gap: "0.45rem",
+  padding: "0.45rem 0.35rem 0.35rem",
+  color: "rgba(255,255,255,0.65)",
+  fontSize: "0.7rem",
+  fontWeight: 700,
+  letterSpacing: "0.06em",
+};
+
+const rankHeaderStyle: React.CSSProperties = {
   textAlign: "center",
 };
 
-const statPillLabelStyle: React.CSSProperties = {
-  color: "var(--text-muted)",
-  fontSize: "0.62rem",
-  letterSpacing: "0.08em",
-  textTransform: "uppercase",
+const playerHeaderStyle: React.CSSProperties = {
+  textAlign: "left",
 };
 
-const statPillValueStyle: React.CSSProperties = {
-  marginTop: "0.18rem",
-  fontSize: "0.92rem",
+const numberHeaderStyle: React.CSSProperties = {
+  textAlign: "right",
+};
+
+const queueHeaderStyle: React.CSSProperties = {
+  textAlign: "right",
+};
+
+const playerRowStyle: React.CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "38px minmax(0, 1fr) 56px 56px 86px",
+  alignItems: "center",
+  gap: "0.45rem",
+  minHeight: "62px",
+  padding: "0.55rem 0.35rem",
+  borderTop: "1px solid rgba(148,163,184,0.08)",
+  background: "rgba(255,255,255,0.02)",
+};
+
+const rankCellStyle: React.CSSProperties = {
+  textAlign: "center",
+  color: "rgba(255,255,255,0.62)",
+  fontSize: "0.9rem",
+};
+
+const playerCellStyle: React.CSSProperties = {
+  minWidth: 0,
+};
+
+const playerNameStyle: React.CSSProperties = {
+  color: "#60a5fa",
+  fontSize: "0.95rem",
   fontWeight: 700,
+  lineHeight: 1.05,
+};
+
+const playerMetaLineStyle: React.CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  gap: "0.35rem",
+  flexWrap: "wrap",
+  marginTop: "0.2rem",
+  color: "rgba(255,255,255,0.58)",
+  fontSize: "0.76rem",
+};
+
+const numberCellStyle: React.CSSProperties = {
+  textAlign: "right",
+  color: "rgba(255,255,255,0.78)",
+  fontSize: "0.9rem",
+};
+
+const queueCellStyle: React.CSSProperties = {
+  display: "flex",
+  justifyContent: "flex-end",
+};
+
+function positionBadgeStyle(position: string): React.CSSProperties {
+  return {
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    minWidth: "22px",
+    height: "18px",
+    borderRadius: "999px",
+    padding: "0 0.38rem",
+    fontSize: "0.66rem",
+    fontWeight: 800,
+    color: "#101010",
+    background: getPositionBadgeColor(position),
+    lineHeight: 1,
+  };
+}
+
+function getPositionBadgeColor(position: string) {
+  const normalized = position.toUpperCase();
+  if (normalized === "C") return "#facc15";
+  if (normalized === "LW" || normalized === "RW" || normalized === "W") return "#60a5fa";
+  if (normalized === "D" || normalized === "LD" || normalized === "RD") return "#b91c1c";
+  if (normalized === "G") return "#f8fafc";
+  return "#cbd5e1";
+}
+
+const miniTagStyle: React.CSSProperties = {
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  minWidth: "20px",
+  height: "18px",
+  padding: "0 0.34rem",
+  borderRadius: "999px",
+  background: "rgba(255,255,255,0.1)",
+  color: "rgba(255,255,255,0.78)",
+  fontSize: "0.66rem",
+  fontWeight: 700,
+  lineHeight: 1,
 };
 
 const pickMarkerStyle: React.CSSProperties = {
   position: "relative",
-  height: "7px",
+  height: "5px",
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
   background:
-    "linear-gradient(90deg, rgba(239,68,68,0) 0%, rgba(239,68,68,0.9) 14%, rgba(239,68,68,0.9) 86%, rgba(239,68,68,0) 100%)",
+    "linear-gradient(90deg, rgba(239,68,68,0) 0%, rgba(239,68,68,0.82) 12%, rgba(239,68,68,0.82) 88%, rgba(239,68,68,0) 100%)",
 };
 
 const pickMarkerTagStyle: React.CSSProperties = {
   position: "relative",
   zIndex: 1,
-  padding: "0.04rem 0.45rem",
+  padding: "0.02rem 0.38rem",
   borderRadius: "999px",
   background: "rgba(7,17,31,0.98)",
   border: "1px solid rgba(239,68,68,0.55)",
   color: "#fca5a5",
-  fontSize: "0.6rem",
+  fontSize: "0.56rem",
   fontWeight: 700,
 };
