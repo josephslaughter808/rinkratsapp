@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { supabase } from "../../../lib/supabaseClient";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { supabase } from "../../../lib/supabaseClient";
+import { useTeam } from "@/context/TeamContext";
 
 type PlayerProfile = {
   id: string;
@@ -12,14 +13,33 @@ type PlayerProfile = {
   profile_pic_url: string | null;
 };
 
+type MembershipCard = {
+  id: string;
+  name: string;
+  league: string;
+  role: string;
+  logoUrl: string | null;
+};
+
+function positionColor(pos: string | null) {
+  if (pos === "C") return "#facc15";
+  if (pos === "LW" || pos === "RW") return "#60a5fa";
+  if (pos === "LD" || pos === "RD" || pos === "D") return "#ef4444";
+  if (pos === "G") return "#f8fafc";
+  return "#cbd5e1";
+}
+
 export default function ProfilePage() {
   const router = useRouter();
+  const { selectedTeam } = useTeam();
 
   const [loading, setLoading] = useState(true);
   const [playerId, setPlayerId] = useState<string | null>(null);
   const [authUserId, setAuthUserId] = useState<string | null>(null);
   const [player, setPlayer] = useState<PlayerProfile | null>(null);
+  const [memberships, setMemberships] = useState<MembershipCard[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [email, setEmail] = useState<string | null>(null);
 
   useEffect(() => {
     async function loadProfile() {
@@ -32,14 +52,16 @@ export default function ProfilePage() {
       }
 
       setAuthUserId(session.user.id);
+      setEmail(session.user.email ?? null);
 
       const { data: ptRow } = await supabase
         .from("player_teams")
         .select("player_id")
         .eq("user_id", session.user.id)
-        .single();
+        .limit(1)
+        .maybeSingle();
 
-      if (!ptRow) {
+      if (!ptRow?.player_id) {
         setLoading(false);
         return;
       }
@@ -59,20 +81,48 @@ export default function ProfilePage() {
         .from("players")
         .select("id, name, number, position, profile_pic_url")
         .eq("id", ptRow.player_id)
-        .single();
+        .maybeSingle();
 
-      if (!playerData?.id) {
-        setLoading(false);
-        return;
+      if (playerData?.id) {
+        setPlayer({
+          id: playerData.id,
+          name: playerData.name ?? null,
+          number: playerData.number ?? null,
+          position: playerData.position ?? null,
+          profile_pic_url: sharedProfileRow?.profile_pic_url ?? playerData.profile_pic_url,
+        });
       }
 
-      setPlayer({
-        id: playerData.id,
-        name: playerData.name ?? null,
-        number: playerData.number ?? null,
-        position: playerData.position ?? null,
-        profile_pic_url: sharedProfileRow?.profile_pic_url ?? playerData.profile_pic_url,
-      });
+      const { data: membershipRows } = await supabase
+        .from("player_teams")
+        .select("id, role, teams(id, name, logo_url, leagues(name, season))")
+        .eq("user_id", session.user.id);
+
+      const nextMemberships =
+        membershipRows
+          ?.map((row) => {
+            const team = Array.isArray(row.teams) ? row.teams[0] : row.teams;
+            const league = team?.leagues
+              ? Array.isArray(team.leagues)
+                ? team.leagues[0]
+                : team.leagues
+              : null;
+
+            if (!team?.id || !team?.name) return null;
+
+            return {
+              id: team.id,
+              name: team.name,
+              league: league?.name
+                ? `${league.name}${league.season ? ` • ${league.season}` : ""}`
+                : "League",
+              role: row.role || "player",
+              logoUrl: team.logo_url ?? null,
+            } satisfies MembershipCard;
+          })
+          .filter((row): row is MembershipCard => Boolean(row)) ?? [];
+
+      setMemberships(nextMemberships);
       setLoading(false);
     }
 
@@ -96,7 +146,6 @@ export default function ProfilePage() {
 
       if (uploadError) throw uploadError;
 
-      // Get public URL
       const { data: urlData } = supabase.storage
         .from("profile pictures")
         .getPublicUrl(filePath);
@@ -111,8 +160,8 @@ export default function ProfilePage() {
       setPlayer((prev) =>
         prev
           ? {
-        ...prev,
-        profile_pic_url: publicUrl,
+              ...prev,
+              profile_pic_url: publicUrl,
             }
           : prev
       );
@@ -123,84 +172,331 @@ export default function ProfilePage() {
     }
   }
 
+  const playerName = useMemo(() => {
+    if (player?.name) return player.name;
+    if (email) return email.split("@")[0];
+    return "Player";
+  }, [email, player?.name]);
+
   if (loading) {
     return (
       <main className="center-screen">
-        <p>Loading...</p>
+        <p>Loading profile...</p>
       </main>
     );
   }
 
   if (!player) {
     return (
-      <main style={{ padding: "2rem", textAlign: "center" }}>
-        <h1>Profile</h1>
-        <p>No player profile found.</p>
+      <main className="page-shell" style={{ paddingTop: "1rem" }}>
+        <section className="glass-panel" style={{ padding: "1.1rem", textAlign: "center" }}>
+          <h1 style={{ fontSize: "1.4rem" }}>Profile</h1>
+          <p style={{ marginTop: "0.6rem", color: "var(--text-muted)" }}>
+            No player profile found yet.
+          </p>
+        </section>
       </main>
     );
   }
 
   return (
-    <main
-      style={{
-        padding: "1.5rem",
-        maxWidth: "600px",
-        margin: "0 auto",
-      }}
-    >
-      <h1 style={{ fontSize: "1.6rem", fontWeight: 700 }}>My Profile</h1>
+    <main className="page-shell" style={{ paddingTop: "1rem", paddingBottom: "6rem" }}>
+      <section className="glass-panel" style={heroCardStyle}>
+        <div style={heroTopRowStyle}>
+          <img
+            src={player.profile_pic_url || "https://via.placeholder.com/240?text=Rink+Rats"}
+            alt="Profile"
+            style={avatarStyle}
+          />
 
-      {/* Profile Picture */}
-      <div style={{ marginTop: "1.5rem", textAlign: "center" }}>
-        <img
-          src={
-            player.profile_pic_url ||
-            "https://via.placeholder.com/150?text=No+Image"
-          }
-          alt="Profile"
-          style={{
-            width: "140px",
-            height: "140px",
-            borderRadius: "50%",
-            objectFit: "cover",
-            border: "3px solid var(--accent-light)",
-          }}
-        />
+          <div style={{ minWidth: 0 }}>
+            <div style={eyebrowStyle}>Shared across leagues</div>
+            <h1 style={nameStyle}>{playerName}</h1>
 
-        <div style={{ marginTop: "1rem" }}>
-          <label
-            style={{
-              display: "inline-block",
-              padding: "0.5rem 1rem",
-              background: "var(--accent)",
-              color: "white",
-              borderRadius: "6px",
-              cursor: "pointer",
-            }}
-          >
-            {uploading ? "Uploading..." : "Upload New Picture"}
-            <input
-              type="file"
-              accept="image/*"
-              onChange={uploadAvatar}
-              style={{ display: "none" }}
-            />
-          </label>
+            <div style={identityRowStyle}>
+              <span style={identityTextStyle}>#{player.number ?? "00"}</span>
+              {player.position ? (
+                <span
+                  style={{
+                    ...positionPillStyle,
+                    background: positionColor(player.position),
+                  }}
+                >
+                  {player.position}
+                </span>
+              ) : null}
+            </div>
+
+            <p style={helperTextStyle}>
+              One photo follows your account across every team and league you join.
+            </p>
+          </div>
         </div>
-      </div>
 
-      {/* Player Info */}
-      <section style={{ marginTop: "2rem" }}>
-        <p>
-          <strong>Name:</strong> {player.name}
-        </p>
-        <p>
-          <strong>Number:</strong> #{player.number}
-        </p>
-        <p>
-          <strong>Position:</strong> {player.position}
-        </p>
+        <label style={uploadButtonStyle}>
+          {uploading ? "Uploading..." : "Update photo"}
+          <input
+            type="file"
+            accept="image/*"
+            onChange={uploadAvatar}
+            style={{ display: "none" }}
+          />
+        </label>
+      </section>
+
+      <section style={sectionStackStyle}>
+        <div style={sectionTitleRowStyle}>
+          <h2 style={sectionTitleStyle}>Current Team</h2>
+        </div>
+
+        <div className="glass-panel" style={infoCardStyle}>
+          <div style={teamRowStyle}>
+            <div>
+              <div style={eyebrowStyle}>Selected team</div>
+              <div style={{ fontSize: "1.1rem", fontWeight: 700 }}>
+                {selectedTeam?.name ?? memberships[0]?.name ?? "No team selected"}
+              </div>
+            </div>
+
+            {selectedTeam?.teamLogo ? (
+              <img
+                src={selectedTeam.teamLogo}
+                alt={selectedTeam.name}
+                style={teamLogoStyle}
+              />
+            ) : null}
+          </div>
+        </div>
+      </section>
+
+      <section style={sectionStackStyle}>
+        <div style={sectionTitleRowStyle}>
+          <h2 style={sectionTitleStyle}>Teams and Leagues</h2>
+        </div>
+
+        <div style={{ display: "grid", gap: "0.8rem" }}>
+          {memberships.length > 0 ? (
+            memberships.map((membership) => {
+              const isActive = selectedTeam?.id === membership.id;
+
+              return (
+                <div
+                  key={membership.id}
+                  className="glass-panel"
+                  style={{
+                    ...membershipCardStyle,
+                    borderColor: isActive
+                      ? "rgba(96,165,250,0.42)"
+                      : "rgba(148,163,184,0.14)",
+                  }}
+                >
+                  <div style={teamRowStyle}>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={membershipLeagueStyle}>{membership.league}</div>
+                      <div style={membershipNameStyle}>{membership.name}</div>
+                      <div style={membershipRoleStyle}>{formatRole(membership.role)}</div>
+                    </div>
+
+                    {membership.logoUrl ? (
+                      <img
+                        src={membership.logoUrl}
+                        alt={membership.name}
+                        style={teamLogoStyle}
+                      />
+                    ) : null}
+                  </div>
+                </div>
+              );
+            })
+          ) : (
+            <div className="glass-panel" style={infoCardStyle}>
+              <p style={{ color: "var(--text-muted)" }}>No league memberships found yet.</p>
+            </div>
+          )}
+        </div>
+      </section>
+
+      <section style={sectionStackStyle}>
+        <div style={sectionTitleRowStyle}>
+          <h2 style={sectionTitleStyle}>Account</h2>
+        </div>
+
+        <div className="glass-panel" style={infoCardStyle}>
+          <div style={detailRowStyle}>
+            <span style={detailLabelStyle}>Email</span>
+            <span style={detailValueStyle}>{email ?? "No email"}</span>
+          </div>
+          <div style={detailRowStyle}>
+            <span style={detailLabelStyle}>Player ID</span>
+            <span style={detailValueStyle}>{player.id}</span>
+          </div>
+        </div>
       </section>
     </main>
   );
 }
+
+function formatRole(role: string) {
+  if (role === "assistant_captain") return "Assistant Captain";
+  if (role === "captain") return "Captain";
+  return role.charAt(0).toUpperCase() + role.slice(1);
+}
+
+const heroCardStyle: React.CSSProperties = {
+  padding: "1rem",
+  display: "grid",
+  gap: "1rem",
+};
+
+const heroTopRowStyle: React.CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "88px minmax(0, 1fr)",
+  gap: "0.9rem",
+  alignItems: "center",
+};
+
+const avatarStyle: React.CSSProperties = {
+  width: "88px",
+  height: "88px",
+  borderRadius: "50%",
+  objectFit: "cover",
+  border: "3px solid var(--accent-light)",
+  background: "rgba(255,255,255,0.08)",
+};
+
+const eyebrowStyle: React.CSSProperties = {
+  color: "var(--accent-light)",
+  fontSize: "0.72rem",
+  textTransform: "uppercase",
+  letterSpacing: "0.08em",
+};
+
+const nameStyle: React.CSSProperties = {
+  fontSize: "1.6rem",
+  lineHeight: 1.05,
+  marginTop: "0.3rem",
+};
+
+const identityRowStyle: React.CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  gap: "0.45rem",
+  flexWrap: "wrap",
+  marginTop: "0.45rem",
+};
+
+const identityTextStyle: React.CSSProperties = {
+  color: "rgba(255,255,255,0.74)",
+  fontWeight: 600,
+};
+
+const positionPillStyle: React.CSSProperties = {
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  minWidth: "30px",
+  height: "24px",
+  padding: "0 0.6rem",
+  borderRadius: "999px",
+  color: "#101010",
+  fontSize: "0.76rem",
+  fontWeight: 800,
+  lineHeight: 1,
+};
+
+const helperTextStyle: React.CSSProperties = {
+  marginTop: "0.55rem",
+  color: "var(--text-muted)",
+  fontSize: "0.85rem",
+  lineHeight: 1.45,
+};
+
+const uploadButtonStyle: React.CSSProperties = {
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  minHeight: "46px",
+  padding: "0.8rem 1rem",
+  borderRadius: "14px",
+  background: "linear-gradient(135deg, #f97316, #ea580c)",
+  color: "white",
+  fontWeight: 700,
+  width: "100%",
+};
+
+const sectionStackStyle: React.CSSProperties = {
+  display: "grid",
+  gap: "0.7rem",
+  marginTop: "1rem",
+};
+
+const sectionTitleRowStyle: React.CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+};
+
+const sectionTitleStyle: React.CSSProperties = {
+  fontSize: "1.15rem",
+};
+
+const infoCardStyle: React.CSSProperties = {
+  padding: "0.95rem",
+};
+
+const membershipCardStyle: React.CSSProperties = {
+  padding: "0.95rem",
+  borderWidth: "1px",
+  borderStyle: "solid",
+};
+
+const teamRowStyle: React.CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+  gap: "0.8rem",
+};
+
+const teamLogoStyle: React.CSSProperties = {
+  width: "54px",
+  height: "54px",
+  borderRadius: "50%",
+  objectFit: "cover",
+  background: "rgba(255,255,255,0.05)",
+  flexShrink: 0,
+};
+
+const membershipLeagueStyle: React.CSSProperties = {
+  color: "var(--accent-light)",
+  fontSize: "0.8rem",
+};
+
+const membershipNameStyle: React.CSSProperties = {
+  fontSize: "1rem",
+  fontWeight: 700,
+  marginTop: "0.18rem",
+};
+
+const membershipRoleStyle: React.CSSProperties = {
+  color: "var(--text-muted)",
+  marginTop: "0.2rem",
+  fontSize: "0.84rem",
+};
+
+const detailRowStyle: React.CSSProperties = {
+  display: "grid",
+  gap: "0.2rem",
+  padding: "0.2rem 0",
+};
+
+const detailLabelStyle: React.CSSProperties = {
+  color: "var(--text-muted)",
+  fontSize: "0.76rem",
+  textTransform: "uppercase",
+  letterSpacing: "0.08em",
+};
+
+const detailValueStyle: React.CSSProperties = {
+  fontSize: "0.95rem",
+  wordBreak: "break-word",
+};

@@ -20,7 +20,7 @@ type StatRow = {
   goals: number;
   assists: number;
   pim: number;
-  hits: number;
+  plusMinus: number;
 };
 
 type SeasonStatsRow = {
@@ -89,7 +89,7 @@ function generatePreviewPlayers(
     const goals = Math.max(0, 24 - Math.floor(index / 3));
     const assists = Math.max(0, 28 - Math.floor(index / 2));
     const pim = (index * 2) % 18;
-    const hits = 18 + ((count - index) % 17);
+    const plusMinus = 18 + ((count - index) % 17);
 
     return {
       player_id: `${prefix}-${rank}`,
@@ -98,7 +98,7 @@ function generatePreviewPlayers(
       goals,
       assists,
       pim,
-      hits,
+      plusMinus,
     };
   });
 }
@@ -129,7 +129,7 @@ function upsertCurrentPlayerRow(
     goals: personal?.goals ?? 0,
     assists: personal?.assists ?? 0,
     pim: personal?.pim ?? 0,
-    hits: rows.find((row) => row.player_id === playerId)?.hits ?? 0,
+    plusMinus: rows.find((row) => row.player_id === playerId)?.plusMinus ?? 0,
   };
 
   const existingIndex = rows.findIndex((row) => row.player_id === playerId);
@@ -146,21 +146,21 @@ const fallbackStatsByTeam: Record<string, TeamFallback> = {
     season: "2026a",
     teamStats: mergeStatRows(
       [
-        { player_id: "bison-1", name: "Eli Mercer", points: 14, goals: 7, assists: 7, pim: 4, hits: 9 },
-        { player_id: "bison-2", name: "Grant Holloway", points: 11, goals: 4, assists: 7, pim: 2, hits: 6 },
-        { player_id: "bison-3", name: "Noah Briggs", points: 8, goals: 3, assists: 5, pim: 10, hits: 13 },
-        { player_id: "bison-4", name: "Dane Archer", points: 6, goals: 2, assists: 4, pim: 6, hits: 8 },
-        { player_id: "bison-5", name: "Miles Porter", points: 3, goals: 1, assists: 2, pim: 0, hits: 4 },
+        { player_id: "bison-1", name: "Eli Mercer", points: 14, goals: 7, assists: 7, pim: 4, plusMinus: 9 },
+        { player_id: "bison-2", name: "Grant Holloway", points: 11, goals: 4, assists: 7, pim: 2, plusMinus: 6 },
+        { player_id: "bison-3", name: "Noah Briggs", points: 8, goals: 3, assists: 5, pim: 10, plusMinus: 13 },
+        { player_id: "bison-4", name: "Dane Archer", points: 6, goals: 2, assists: 4, pim: 6, plusMinus: 8 },
+        { player_id: "bison-5", name: "Miles Porter", points: 3, goals: 1, assists: 2, pim: 0, plusMinus: 4 },
       ],
       generatePreviewPlayers("bison", "Bison", 100, 6)
     ),
     leagueStats: mergeStatRows(
       [
-        { player_id: "bison-1", name: "Eli Mercer", points: 14, goals: 7, assists: 7, pim: 4, hits: 9 },
-        { player_id: "mustangs-1", name: "Cal Romero", points: 13, goals: 6, assists: 7, pim: 8, hits: 7 },
-        { player_id: "peaks-1", name: "Jace Tanner", points: 12, goals: 5, assists: 7, pim: 2, hits: 10 },
-        { player_id: "yeti-1", name: "Cole Ramsey", points: 10, goals: 4, assists: 6, pim: 12, hits: 14 },
-        { player_id: "bison-2", name: "Grant Holloway", points: 11, goals: 4, assists: 7, pim: 2, hits: 6 },
+        { player_id: "bison-1", name: "Eli Mercer", points: 14, goals: 7, assists: 7, pim: 4, plusMinus: 9 },
+        { player_id: "mustangs-1", name: "Cal Romero", points: 13, goals: 6, assists: 7, pim: 8, plusMinus: 7 },
+        { player_id: "peaks-1", name: "Jace Tanner", points: 12, goals: 5, assists: 7, pim: 2, plusMinus: 10 },
+        { player_id: "yeti-1", name: "Cole Ramsey", points: 10, goals: 4, assists: 6, pim: 12, plusMinus: 14 },
+        { player_id: "bison-2", name: "Grant Holloway", points: 11, goals: 4, assists: 7, pim: 2, plusMinus: 6 },
       ],
       [
         ...generatePreviewPlayers("bison-league", "Bison League", 40, 6),
@@ -174,21 +174,21 @@ const fallbackStatsByTeam: Record<string, TeamFallback> = {
     season: "2026a",
     teamStats: mergeStatRows(
       [
-        { player_id: "dst-1", name: "Evan Price", points: 16, goals: 8, assists: 8, pim: 4, hits: 5 },
-        { player_id: "dst-2", name: "Nate Keller", points: 13, goals: 4, assists: 9, pim: 6, hits: 8 },
-        { player_id: "dst-3", name: "Jules Medina", points: 9, goals: 2, assists: 7, pim: 12, hits: 15 },
-        { player_id: "dst-4", name: "Micah Dunn", points: 8, goals: 5, assists: 3, pim: 2, hits: 4 },
-        { player_id: "dst-5", name: "Mason Pope", points: 6, goals: 3, assists: 3, pim: 0, hits: 3 },
+        { player_id: "dst-1", name: "Evan Price", points: 16, goals: 8, assists: 8, pim: 4, plusMinus: 5 },
+        { player_id: "dst-2", name: "Nate Keller", points: 13, goals: 4, assists: 9, pim: 6, plusMinus: 8 },
+        { player_id: "dst-3", name: "Jules Medina", points: 9, goals: 2, assists: 7, pim: 12, plusMinus: 15 },
+        { player_id: "dst-4", name: "Micah Dunn", points: 8, goals: 5, assists: 3, pim: 2, plusMinus: 4 },
+        { player_id: "dst-5", name: "Mason Pope", points: 6, goals: 3, assists: 3, pim: 0, plusMinus: 3 },
       ],
       generatePreviewPlayers("dst", "Desert Storm", 100, 6)
     ),
     leagueStats: mergeStatRows(
       [
-        { player_id: "dst-1", name: "Evan Price", points: 16, goals: 8, assists: 8, pim: 4, hits: 5 },
-        { player_id: "rdm-1", name: "Chris Boone", points: 15, goals: 6, assists: 9, pim: 8, hits: 6 },
-        { player_id: "ply-1", name: "Ava Reese", points: 12, goals: 5, assists: 7, pim: 2, hits: 7 },
-        { player_id: "dst-2", name: "Nate Keller", points: 13, goals: 4, assists: 9, pim: 6, hits: 8 },
-        { player_id: "mds-1", name: "Tyson Black", points: 11, goals: 4, assists: 7, pim: 14, hits: 16 },
+        { player_id: "dst-1", name: "Evan Price", points: 16, goals: 8, assists: 8, pim: 4, plusMinus: 5 },
+        { player_id: "rdm-1", name: "Chris Boone", points: 15, goals: 6, assists: 9, pim: 8, plusMinus: 6 },
+        { player_id: "ply-1", name: "Ava Reese", points: 12, goals: 5, assists: 7, pim: 2, plusMinus: 7 },
+        { player_id: "dst-2", name: "Nate Keller", points: 13, goals: 4, assists: 9, pim: 6, plusMinus: 8 },
+        { player_id: "mds-1", name: "Tyson Black", points: 11, goals: 4, assists: 7, pim: 14, plusMinus: 16 },
       ],
       [
         ...generatePreviewPlayers("dst-league", "Rink Rats", 40, 6),
@@ -220,7 +220,7 @@ const statColumns = [
   { key: "goals" as const, label: "Goals" },
   { key: "assists" as const, label: "Assists" },
   { key: "pim" as const, label: "PIM" },
-  { key: "hits" as const, label: "Hits" },
+  { key: "plusMinus" as const, label: "+/-" },
 ];
 
 function mapSeasonStatsRows(rows: SeasonStatsRow[] | null | undefined): StatRow[] {
@@ -234,7 +234,7 @@ function mapSeasonStatsRows(rows: SeasonStatsRow[] | null | undefined): StatRow[
       goals: row.goals ?? 0,
       assists: row.assists ?? 0,
       pim: row.pim ?? 0,
-      hits: 0,
+      plusMinus: 0,
     };
   });
 }
@@ -288,7 +288,7 @@ function applyEvents(baseRows: StatRow[], events: LoggedEvent[]) {
     if (event.type === "hit") {
       const hitter = next.get(event.playerId);
       if (hitter) {
-        hitter.hits += 1;
+        hitter.plusMinus += 1;
       }
     }
   }
@@ -313,7 +313,7 @@ export default function StatsPage() {
     goals: 0,
     assists: 0,
     pim: 0,
-    hits: 0,
+    plusMinus: 0,
   });
   const [teamStats, setTeamStats] = useState<StatRow[]>([]);
   const [leagueStats, setLeagueStats] = useState<StatRow[]>([]);
@@ -458,7 +458,7 @@ export default function StatsPage() {
         goals: personal?.goals ?? personalRow?.goals ?? 0,
         assists: personal?.assists ?? personalRow?.assists ?? 0,
         pim: personal?.pim ?? personalRow?.pim ?? 0,
-        hits: personalRow?.hits ?? 0,
+        plusMinus: personalRow?.plusMinus ?? 0,
       });
 
       setTeamStats(nextTeamStats);
@@ -1024,7 +1024,7 @@ function StatsTable({
               <div>{player.goals}</div>
               <div>{player.assists}</div>
               <div>{player.pim}</div>
-              <div>{player.hits}</div>
+              <div>{player.plusMinus}</div>
             </div>
           );
         })}
