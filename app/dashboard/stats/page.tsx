@@ -299,6 +299,7 @@ function applyEvents(baseRows: StatRow[], events: LoggedEvent[]) {
 export default function StatsPage() {
   const router = useRouter();
   const { selectedTeam } = useTeam();
+  const statsTablesRef = useRef<HTMLElement | null>(null);
 
   const [loading, setLoading] = useState(true);
   const [userEmail, setUserEmail] = useState<string | null>(null);
@@ -332,6 +333,7 @@ export default function StatsPage() {
   const [penaltyMinutes, setPenaltyMinutes] = useState(2);
   const [hitPlayerId, setHitPlayerId] = useState("");
   const [hitTargetNumber, setHitTargetNumber] = useState("");
+  const [showGlobalStatsHeader, setShowGlobalStatsHeader] = useState(false);
 
   const isStaffEditor =
     selectedTeam?.role === "captain" || selectedTeam?.role === "assistant_captain";
@@ -513,6 +515,27 @@ export default function StatsPage() {
 
     return leagueBase;
   }, [displayedTeamStats, leagueStats]);
+
+  useEffect(() => {
+    function updateGlobalStatsHeader() {
+      const section = statsTablesRef.current;
+      if (!section) return;
+
+      const rect = section.getBoundingClientRect();
+      const topOffset = 98;
+      const shouldShow = rect.top <= topOffset && rect.bottom > topOffset + 120;
+      setShowGlobalStatsHeader(shouldShow);
+    }
+
+    updateGlobalStatsHeader();
+    window.addEventListener("scroll", updateGlobalStatsHeader, { passive: true });
+    window.addEventListener("resize", updateGlobalStatsHeader);
+
+    return () => {
+      window.removeEventListener("scroll", updateGlobalStatsHeader);
+      window.removeEventListener("resize", updateGlobalStatsHeader);
+    };
+  }, []);
 
   if (!selectedTeam) {
     return (
@@ -873,7 +896,21 @@ export default function StatsPage() {
         </section>
       ) : null}
 
-      <section style={{ display: "grid", gap: "1rem", marginTop: "1.25rem" }}>
+      {showGlobalStatsHeader ? (
+        <div style={globalStatsHeaderWrapStyle}>
+          <div style={{ ...tableHeaderStyle, ...globalStatsHeaderStyle }}>
+            <div style={{ textAlign: "left" }}>Name</div>
+            {statColumns.map((col) => (
+              <div key={col.key}>{col.label}</div>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
+      <section
+        ref={statsTablesRef}
+        style={{ display: "grid", gap: "1rem", marginTop: "1.25rem" }}
+      >
         <StatsTable
           title="Team Stats"
           rows={sortData(displayedTeamStats, teamSortField, teamSortDir)}
@@ -919,37 +956,20 @@ function StatsTable({
   onSortDirChange: (dir: "asc" | "desc") => void;
   routerPush: (href: string) => void;
 }) {
-  const sectionRef = useRef<HTMLElement | null>(null);
-  const [showFloatingHeader, setShowFloatingHeader] = useState(false);
+  return (
+    <section
+      className="glass-panel"
+      style={{
+        padding: "0.8rem",
+        width: "calc(100% - 1.5rem)",
+        margin: "0 auto",
+        overflow: "visible",
+      }}
+    >
+      <h2 style={{ fontSize: "1.3rem", marginBottom: "0.75rem" }}>{title}</h2>
 
-  useEffect(() => {
-    function updateStickyState() {
-      const section = sectionRef.current;
-      if (!section) return;
-
-      const rect = section.getBoundingClientRect();
-      const headerOffset = 98;
-      const floatingHeight = 34;
-      const shouldShow =
-        rect.top <= headerOffset && rect.bottom > headerOffset + floatingHeight + 28;
-
-      setShowFloatingHeader(shouldShow);
-    }
-
-    updateStickyState();
-    window.addEventListener("scroll", updateStickyState, { passive: true });
-    window.addEventListener("resize", updateStickyState);
-
-    return () => {
-      window.removeEventListener("scroll", updateStickyState);
-      window.removeEventListener("resize", updateStickyState);
-    };
-  }, []);
-
-  function renderHeader(floating = false) {
-    return (
-      <div style={floating ? floatingHeaderWrapStyle : undefined}>
-        <div style={{ ...tableHeaderStyle, ...(floating ? floatingHeaderFixedStyle : tableHeaderInlineStyle) }}>
+      <div>
+        <div style={{ ...tableHeaderStyle, ...tableHeaderInlineStyle }}>
           <div style={{ textAlign: "left" }}>Name</div>
           {statColumns.map((col) => {
             const active = sortField === col.key;
@@ -973,27 +993,6 @@ function StatsTable({
             );
           })}
         </div>
-      </div>
-    );
-  }
-
-  return (
-    <section
-      ref={sectionRef}
-      className="glass-panel"
-      style={{
-        padding: "0.8rem",
-        width: "calc(100% - 1.5rem)",
-        margin: "0 auto",
-        overflow: "visible",
-      }}
-    >
-      <h2 style={{ fontSize: "1.3rem", marginBottom: "0.75rem" }}>{title}</h2>
-
-      {showFloatingHeader ? renderHeader(true) : null}
-
-      <div>
-        {renderHeader(false)}
 
         {rows.map((player) => {
           const isCurrent = player.player_id === playerId;
@@ -1125,12 +1124,13 @@ const tableHeaderInlineStyle: React.CSSProperties = {
   marginBottom: "0.2rem",
 };
 
-const floatingHeaderWrapStyle: React.CSSProperties = {
+const globalStatsHeaderWrapStyle: React.CSSProperties = {
   height: "34px",
+  marginTop: "0.4rem",
   marginBottom: "0.2rem",
 };
 
-const floatingHeaderFixedStyle: React.CSSProperties = {
+const globalStatsHeaderStyle: React.CSSProperties = {
   position: "fixed",
   top: "calc(var(--app-topbar-height) - 12px)",
   left: "50%",
