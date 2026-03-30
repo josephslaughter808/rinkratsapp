@@ -61,8 +61,16 @@ export default function ProfilePage() {
         .eq("id", ptRow.player_id)
         .single();
 
+      if (!playerData?.id) {
+        setLoading(false);
+        return;
+      }
+
       setPlayer({
-        ...playerData,
+        id: playerData.id,
+        name: playerData.name ?? null,
+        number: playerData.number ?? null,
+        position: playerData.position ?? null,
         profile_pic_url: sharedProfileRow?.profile_pic_url ?? playerData.profile_pic_url,
       });
       setLoading(false);
@@ -75,7 +83,7 @@ export default function ProfilePage() {
     try {
       setUploading(true);
 
-      const file = event.target.files[0];
+      const file = event.target.files?.[0];
       if (!file || !playerId || !authUserId) return;
 
       const fileExt = file.name.split(".").pop();

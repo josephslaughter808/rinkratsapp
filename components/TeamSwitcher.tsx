@@ -11,6 +11,34 @@ type PlayerCard = {
   profile_pic_url: string | null;
 };
 
+type MembershipRow = {
+  player_id: string | null;
+  role: string | null;
+  teams:
+    | {
+        id: string;
+        name: string;
+        logo_url: string | null;
+        league_id: string | null;
+      }
+    | {
+        id: string;
+        name: string;
+        logo_url: string | null;
+        league_id: string | null;
+      }[]
+    | null;
+};
+
+type MappedTeam = {
+  id: string;
+  name: string;
+  teamLogo: string | null;
+  leagueId: string | null;
+  player_id: string;
+  role: string | null;
+};
+
 export default function TeamSwitcher() {
   const { selectedTeam, setSelectedTeam } = useTeam();
 
@@ -58,25 +86,24 @@ export default function TeamSwitcher() {
         return;
       }
 
-      const mappedTeams: SelectedTeam[] = memberships
-        .filter((row) => row.teams?.id && row.player_id)
-        .map((row: {
-          player_id: string;
-          role: string | null;
-          teams: {
-            id: string;
-            name: string;
-            logo_url: string | null;
-            league_id: string | null;
-          } | null;
-        }) => ({
-        id: row.teams?.id,
-        name: row.teams?.name,
-        teamLogo: row.teams?.logo_url ?? null,
-        leagueId: row.teams?.league_id ?? null,
-        player_id: row.player_id,
-        role: row.role,
-      }));
+      const mappedTeams = (memberships as MembershipRow[])
+        .map((row) => {
+          const team = Array.isArray(row.teams) ? row.teams[0] : row.teams;
+
+          if (!team?.id || !row.player_id) {
+            return null;
+          }
+
+          return {
+            id: team.id,
+            name: team.name,
+            teamLogo: team.logo_url ?? null,
+            leagueId: team.league_id ?? null,
+            player_id: row.player_id,
+            role: row.role,
+          };
+        })
+        .filter((team): team is MappedTeam => team !== null);
 
       setTeams(mappedTeams);
 
@@ -227,7 +254,7 @@ export default function TeamSwitcher() {
           }}
         >
           <img
-            src={selectedTeam.teamLogo}
+            src={selectedTeam.teamLogo || "https://via.placeholder.com/60?text=Team"}
             alt="league logo"
             style={{
               width: "60px",
