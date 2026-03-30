@@ -1135,9 +1135,10 @@ const globalStatsHeaderStyle: React.CSSProperties = {
   top: "calc(var(--app-topbar-height) + 6px)",
   left: "50%",
   transform: "translateX(-50%)",
-  width: "calc(100% - 2.3rem)",
-  maxWidth: "calc(1100px - 1.5rem)",
+  width: "calc(100% - 3.4rem)",
+  maxWidth: "calc(1100px - 4rem)",
   zIndex: 30,
   background: "rgba(13, 24, 42, 0.98)",
   boxShadow: "0 8px 20px rgba(1, 5, 16, 0.28)",
+  borderRadius: "14px",
 };
