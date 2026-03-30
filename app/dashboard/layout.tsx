@@ -35,7 +35,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <div
         style={{
           minHeight: "100vh",
-          paddingBottom: hideNav ? "0px" : "calc(80px + var(--safe-bottom))",
+          paddingBottom: hideNav ? "0px" : "var(--app-bottomnav-height)",
         }}
       >
         
@@ -47,17 +47,19 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               padding:
                 "calc(0.75rem + var(--safe-top)) calc(0.9rem + var(--safe-right)) 0.75rem calc(0.9rem + var(--safe-left))",
               borderBottom: "1px solid #1f2937",
-              position: "sticky",
+              position: "fixed",
               top: 0,
+              left: 0,
               zIndex: 1000,
               backdropFilter: "blur(18px)",
+              minHeight: "var(--app-topbar-height)",
             }}
           >
             <TeamSwitcher />
           </div>
         )}
 
-        {children}
+        <div style={{ paddingTop: hideNav ? 0 : "var(--app-topbar-height)" }}>{children}</div>
 
         {!hideNav && (
           <nav
@@ -74,6 +76,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 "0.7rem calc(0.2rem + var(--safe-right)) calc(0.7rem + var(--safe-bottom)) calc(0.2rem + var(--safe-left))",
               zIndex: 100,
               backdropFilter: "blur(18px)",
+              minHeight: "var(--app-bottomnav-height)",
             }}
           >
             {navItems.map(({ href, label, icon: Icon }) => {
