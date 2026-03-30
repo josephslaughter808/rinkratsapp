@@ -18,57 +18,76 @@ export default function DraftHeader({
   onExit,
 }: DraftHeaderProps) {
   return (
-    <div
-      style={{
-        background: "linear-gradient(135deg, rgba(15,23,42,0.98), rgba(30,41,59,0.95))",
-        padding: "1rem 1.1rem",
-        borderBottom: "1px solid rgba(148, 163, 184, 0.18)",
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
-        gap: "1rem",
-        flexWrap: "wrap",
-      }}
-    >
-      <div>
-        <div style={{ fontSize: "0.78rem", opacity: 0.72, textTransform: "uppercase", letterSpacing: "0.08em" }}>
-          On the clock
+    <div style={{ background: "#05070b", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+      <div
+        style={{
+          padding: "0.45rem 0.8rem 0.4rem",
+          display: "grid",
+          gridTemplateColumns: "52px 1fr 52px",
+          alignItems: "center",
+          gap: "0.35rem",
+          minHeight: "58px",
+        }}
+      >
+        <button onClick={onExit} style={headerEdgeButtonStyle}>
+          Exit
+        </button>
+
+        <div
+          style={{
+            display: "grid",
+            justifyItems: "center",
+            textAlign: "center",
+            gap: "0.08rem",
+          }}
+        >
+          <div style={{ fontSize: "0.66rem", color: "rgba(255,255,255,0.62)" }}>
+            {currentTeam}
+          </div>
+          <div style={{ fontSize: "1.95rem", fontWeight: 700, lineHeight: 1 }}>
+            {formatTime(timeLeft)}
+          </div>
         </div>
-        <div style={{ fontSize: "1.35rem", fontWeight: 700 }}>{currentTeam}</div>
-        <div style={{ fontSize: "0.82rem", opacity: 0.72 }}>
-          Pick {pickNumber} • Round {round}/{totalRounds}
-        </div>
+
+        <button style={headerEdgeButtonStyle} aria-label="Draft settings">
+          ⚙
+        </button>
       </div>
 
       <div
         style={{
-          padding: "0.7rem 1rem",
-          borderRadius: "999px",
-          background: "rgba(249, 115, 22, 0.12)",
-          border: "1px solid rgba(249, 115, 22, 0.28)",
+          minHeight: "24px",
+          padding: "0.28rem 0.8rem 0.3rem",
+          background: "rgba(255,255,255,0.08)",
+          borderTop: "1px solid rgba(255,255,255,0.04)",
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          textAlign: "center",
+          fontSize: "0.72rem",
+          color: "rgba(255,255,255,0.72)",
+          lineHeight: 1.1,
         }}
       >
-        <div style={{ fontSize: "0.72rem", opacity: 0.72, textTransform: "uppercase", letterSpacing: "0.08em" }}>
-          Pick timer
-        </div>
-        <div style={{ fontSize: "1.4rem", fontWeight: 700, color: "#fdba74" }}>
-          {timeLeft}s
-        </div>
+        Rnd {round}, Pick {pickNumber} of {totalRounds}
       </div>
-
-      <button
-        onClick={onExit}
-        style={{
-          background: "rgba(15, 23, 42, 0.95)",
-          border: "1px solid rgba(148, 163, 184, 0.18)",
-          padding: "0.7rem 0.9rem",
-          borderRadius: "14px",
-          color: "white",
-          fontSize: "0.82rem",
-        }}
-      >
-        Exit Draft
-      </button>
     </div>
   );
 }
+
+function formatTime(timeLeft: number) {
+  const minutes = Math.floor(timeLeft / 60);
+  const seconds = timeLeft % 60;
+  return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+}
+
+const headerEdgeButtonStyle: React.CSSProperties = {
+  background: "transparent",
+  border: "none",
+  color: "white",
+  fontSize: "0.95rem",
+  fontWeight: 500,
+  padding: "0.1rem 0.15rem",
+  minWidth: "44px",
+  minHeight: "28px",
+};

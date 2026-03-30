@@ -19,7 +19,18 @@ export default function PlayersTab({
   const visiblePlayers = players
     .filter((player) => {
       if (draftedPlayerIds.includes(player.id)) return false;
-      if (positionFilter !== "All" && player.position !== positionFilter) return false;
+      if (positionFilter === "Offense" && !["C", "LW", "RW"].includes(player.position)) {
+        return false;
+      }
+      if (positionFilter === "Defense" && player.position !== "D") {
+        return false;
+      }
+      if (
+        !["All", "Offense", "Defense"].includes(positionFilter) &&
+        player.position !== positionFilter
+      ) {
+        return false;
+      }
       if (tierFilter !== "All" && player.tier !== tierFilter) return false;
       return true;
     })
@@ -28,17 +39,29 @@ export default function PlayersTab({
   return (
     <div style={{ display: "grid", gap: "0.9rem" }}>
       <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) 152px", gap: "0.7rem" }}>
-        <div style={{ display: "flex", gap: "0.7rem", overflowX: "auto", paddingBottom: "0.1rem" }}>
-          {["All", "C", "LW", "RW", "D", "G"].map((value) => (
-            <button
-              key={value}
-              onClick={() => setPositionFilter(value)}
-              style={filterButtonStyle(positionFilter === value)}
-            >
-              {value === "All" ? "All Pos" : value}
-            </button>
-          ))}
-        </div>
+        <label style={selectWrapStyle}>
+          <span style={selectLabelStyle}>Position</span>
+          <select
+            value={positionFilter}
+            onChange={(event) => setPositionFilter(event.target.value)}
+            style={selectStyle}
+          >
+            {[
+              { value: "All", label: "All Positions" },
+              { value: "Offense", label: "All Offense" },
+              { value: "Defense", label: "All Defense" },
+              { value: "C", label: "Center" },
+              { value: "LW", label: "Left Wing" },
+              { value: "RW", label: "Right Wing" },
+              { value: "D", label: "Defense" },
+              { value: "G", label: "Goalie" },
+            ].map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
 
         <label style={selectWrapStyle}>
           <span style={selectLabelStyle}>Level</span>
@@ -140,17 +163,6 @@ function formatLevel(level: DraftPlayer["tier"]) {
   if (level === "B") return "B";
   if (level === "C") return "C";
   return level;
-}
-
-function filterButtonStyle(active: boolean): React.CSSProperties {
-  return {
-    background: active ? "rgba(249, 115, 22, 0.18)" : "var(--surface-light)",
-    border: `1px solid ${active ? "rgba(249,115,22,0.3)" : "var(--line)"}`,
-    color: "var(--text)",
-    padding: "0.65rem 0.85rem",
-    borderRadius: "999px",
-    whiteSpace: "nowrap",
-  };
 }
 
 function queueButtonStyle(queued: boolean): React.CSSProperties {
