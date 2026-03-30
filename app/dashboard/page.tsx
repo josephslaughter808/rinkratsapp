@@ -200,8 +200,14 @@ export default function DashboardPage() {
             marginBottom: "1rem",
           }}
         >
-          <StarPlayerCard label="Offense" player={yourGame.stars.offense} />
-          <StarPlayerCard label="Defense" player={yourGame.stars.defense} />
+          <div style={{ display: "grid", gap: "0.45rem" }}>
+            <div style={starSectionHeadingStyle}>Offensive Player of the Game</div>
+            <StarPlayerCard player={yourGame.stars.offense} />
+          </div>
+          <div style={{ display: "grid", gap: "0.45rem" }}>
+            <div style={starSectionHeadingStyle}>Defensive Player of the Game</div>
+            <StarPlayerCard player={yourGame.stars.defense} />
+          </div>
         </section>
       ) : null}
 
@@ -357,10 +363,8 @@ function LineGroup({
 }
 
 function StarPlayerCard({
-  label,
   player,
 }: {
-  label: string;
   player: GameStar;
 }) {
   return (
@@ -374,11 +378,12 @@ function StarPlayerCard({
         textAlign: "center",
       }}
     >
-      <div style={starTagStyle}>{label}</div>
       <img src={player.profileUrl} alt={player.name} style={starImageStyle} />
-      <div style={starNameStyle}>{player.name}</div>
-      <div style={starNumberStyle}>#{player.number}</div>
-      <div style={starPositionStyle}>{player.position}</div>
+      <div style={starIdentityRowStyle}>
+        <span style={starNameStyle}>{player.name}</span>
+        <span style={starNumberStyle}>#{player.number}</span>
+        <span style={positionPillStyle(player.position)}>{player.position}</span>
+      </div>
 
       <div style={starStatsRowStyle}>
         {player.stats.map((stat) => (
@@ -614,20 +619,13 @@ const linePlayerStyle: React.CSSProperties = {
   color: "var(--text)",
 };
 
-const starTagStyle: React.CSSProperties = {
-  display: "inline-flex",
-  alignItems: "center",
-  justifyContent: "center",
-  padding: "0.28rem 0.65rem",
-  borderRadius: "999px",
-  marginBottom: "0.85rem",
-  background: "rgba(249,115,22,0.12)",
-  border: "1px solid rgba(249,115,22,0.24)",
+const starSectionHeadingStyle: React.CSSProperties = {
   color: "var(--accent-light)",
-  fontSize: "0.74rem",
+  fontSize: "0.78rem",
   fontWeight: 700,
   letterSpacing: "0.08em",
   textTransform: "uppercase",
+  textAlign: "center",
 };
 
 const starImageStyle: React.CSSProperties = {
@@ -640,6 +638,14 @@ const starImageStyle: React.CSSProperties = {
   background: "rgba(255,255,255,0.06)",
 };
 
+const starIdentityRowStyle: React.CSSProperties = {
+  display: "flex",
+  flexWrap: "wrap",
+  justifyContent: "center",
+  alignItems: "center",
+  gap: "0.35rem",
+};
+
 const starNameStyle: React.CSSProperties = {
   fontWeight: 700,
   fontSize: "1rem",
@@ -647,17 +653,8 @@ const starNameStyle: React.CSSProperties = {
 };
 
 const starNumberStyle: React.CSSProperties = {
-  marginTop: "0.35rem",
   color: "var(--accent-light)",
   fontWeight: 700,
-};
-
-const starPositionStyle: React.CSSProperties = {
-  marginTop: "0.2rem",
-  color: "var(--text-muted)",
-  fontSize: "0.78rem",
-  letterSpacing: "0.08em",
-  textTransform: "uppercase",
 };
 
 const starStatsRowStyle: React.CSSProperties = {
@@ -685,3 +682,27 @@ const starStatLabelStyle: React.CSSProperties = {
   fontSize: "0.65rem",
   letterSpacing: "0.08em",
 };
+
+function positionPillStyle(position: string): React.CSSProperties {
+  const normalized = position.toUpperCase();
+  let background = "#ffffff";
+
+  if (normalized === "C") background = "#facc15";
+  else if (normalized === "LW" || normalized === "RW" || normalized === "W")
+    background = "#60a5fa";
+  else if (normalized.includes("D")) background = "#f87171";
+
+  return {
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    minWidth: "34px",
+    padding: "0.18rem 0.45rem",
+    borderRadius: "999px",
+    background,
+    color: "#050b14",
+    fontSize: "0.72rem",
+    fontWeight: 800,
+    letterSpacing: "0.04em",
+  };
+}

@@ -168,24 +168,22 @@ export default function TeamSwitcher() {
 
   return (
     <div style={{ position: "relative", width: "100%" }}>
-      {/* TOP BAR */}
       <div
         onClick={() => setOpen(!open)}
         style={{
           position: "relative",
           display: "flex",
-          alignItems: "center",
+          alignItems: "flex-start",
           justifyContent: "space-between",
           background: "#0A1A2F",
-          padding: "0.75rem 1rem",
+          padding: "0.6rem 1rem 0.7rem",
           borderRadius: "6px",
           cursor: "pointer",
           userSelect: "none",
-          height: "48px",
+          minHeight: "72px",
           overflow: "visible",
         }}
       >
-        {/* LEFT — PLAYER INFO */}
         <div
           style={{
             display: "flex",
@@ -205,46 +203,50 @@ export default function TeamSwitcher() {
               flexShrink: 0,
             }}
           />
-
-          <div style={{ lineHeight: "1.1", whiteSpace: "nowrap" }}>
-            <div style={{ fontSize: "0.9rem", fontWeight: 600 }}>
-              {player.name || "Player"}
-            </div>
-            <div style={{ fontSize: "0.75rem", color: "#9CA3AF" }}>
-              #{player.number ?? "--"} • {player.position ?? "--"}
-            </div>
-          </div>
         </div>
 
-        {/* CENTER — TEAM NAME */}
         <div
           style={{
             position: "absolute",
             left: "50%",
             transform: "translateX(-50%)",
-            display: "flex",
-            alignItems: "center",
+            display: "grid",
+            justifyItems: "center",
             gap: "0.35rem",
             pointerEvents: "none",
+            top: "0.5rem",
           }}
         >
-          <span style={{ fontSize: "1.1rem", fontWeight: 700 }}>
-            {selectedTeam.name}
-          </span>
+          <div style={playerIdentityRowStyle}>
+            <span style={{ fontSize: "0.92rem", fontWeight: 700 }}>
+              {player.name || "Player"}
+            </span>
+            <span style={{ color: "#fdba74", fontWeight: 700 }}>
+              #{player.number ?? "--"}
+            </span>
+            <span style={positionPillStyle(player.position ?? "--")}>
+              {player.position ?? "--"}
+            </span>
+          </div>
 
-          <span
-            style={{
-              fontSize: "0.9rem",
-              transform: open ? "rotate(180deg)" : "rotate(0deg)",
-              transition: "0.2s",
-              opacity: 0.8,
-            }}
-          >
-            ▼
-          </span>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.35rem" }}>
+            <span style={{ fontSize: "1.1rem", fontWeight: 700 }}>
+              {selectedTeam.name}
+            </span>
+
+            <span
+              style={{
+                fontSize: "0.9rem",
+                transform: open ? "rotate(180deg)" : "rotate(0deg)",
+                transition: "0.2s",
+                opacity: 0.8,
+              }}
+            >
+              ▼
+            </span>
+          </div>
         </div>
 
-        {/* RIGHT — LEAGUE LOGO */}
         <div
           style={{
             minWidth: "40px",
@@ -271,7 +273,7 @@ export default function TeamSwitcher() {
         <div
           style={{
             position: "absolute",
-            top: "3.2rem",
+            top: "4.7rem",
             left: 0,
             width: "100%",
             background: "#0F213A",
@@ -299,4 +301,36 @@ export default function TeamSwitcher() {
       )}
     </div>
   );
+}
+
+const playerIdentityRowStyle: React.CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  gap: "0.35rem",
+  whiteSpace: "nowrap",
+};
+
+function positionPillStyle(position: string): React.CSSProperties {
+  const normalized = position.toUpperCase();
+  let background = "#ffffff";
+
+  if (normalized === "C") background = "#facc15";
+  else if (normalized === "LW" || normalized === "RW" || normalized === "W")
+    background = "#60a5fa";
+  else if (normalized.includes("D")) background = "#f87171";
+
+  return {
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    minWidth: "34px",
+    padding: "0.18rem 0.45rem",
+    borderRadius: "999px",
+    background,
+    color: "#050b14",
+    fontSize: "0.72rem",
+    fontWeight: 800,
+    letterSpacing: "0.04em",
+  };
 }
