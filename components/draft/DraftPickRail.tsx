@@ -6,6 +6,7 @@ interface Team {
   id: string;
   name: string;
   shortName?: string;
+  accent?: string;
 }
 
 interface Pick {
@@ -69,6 +70,8 @@ export default function DraftPickRail({
           const team = getTeam(pick.teamId);
           const isCurrent = pick.overall === currentPickOverall;
           const isYourNext = pick.overall === yourNextPickOverall;
+          const hasPlayer = Boolean(pick.player_name);
+          const playerOutline = getPositionOutline(pick.player_position);
 
           return (
             <div
@@ -76,55 +79,65 @@ export default function DraftPickRail({
               data-pick={pick.overall}
               style={{
                 width: 148,
-                minHeight: 136,
+                minHeight: 156,
                 borderRadius: 18,
                 background: isCurrent
                   ? "linear-gradient(180deg, rgba(249,115,22,0.95), rgba(194,65,12,0.95))"
                   : "linear-gradient(180deg, rgba(15,23,42,0.94), rgba(15,23,42,0.76))",
-                border: isYourNext
+                border: hasPlayer
+                  ? `2px solid ${playerOutline}`
+                  : isYourNext
                   ? "2px solid rgba(34,197,94,0.9)"
                   : "1px solid rgba(148, 163, 184, 0.16)",
                 display: "flex",
                 flexDirection: "column",
-                justifyContent: "space-between",
+                alignItems: "center",
                 padding: "0.7rem",
                 color: "white",
                 flexShrink: 0,
-                boxShadow: isCurrent ? "0 16px 36px rgba(194,65,12,0.28)" : "none",
+                boxShadow: isCurrent
+                  ? "0 16px 36px rgba(194,65,12,0.28)"
+                  : hasPlayer
+                  ? `0 10px 24px ${withAlpha(playerOutline, 0.18)}`
+                  : "none",
+                transition: "transform 180ms ease, border-color 180ms ease",
               }}
             >
-              <div style={{ display: "flex", justifyContent: "space-between", gap: "0.4rem", fontSize: "0.72rem" }}>
-                <span style={{ opacity: 0.8 }}>R{pick.round}</span>
-                <span style={{ opacity: 0.8 }}>#{pick.overall}</span>
-              </div>
-
-              <div style={{ minHeight: "56px" }}>
-                <div style={{ fontSize: "1.1rem", fontWeight: 700 }}>{team?.shortName || team?.name}</div>
-                <div style={{ fontSize: "0.75rem", color: "rgba(255,255,255,0.75)", marginTop: "0.2rem" }}>
-                  {pick.player_name ? pick.player_position : "On deck"}
-                </div>
-              </div>
-
               <div
                 style={{
-                  fontSize: "0.75rem",
-                  lineHeight: 1.2,
+                  width: "100%",
+                  textAlign: "center",
+                  fontSize: "0.76rem",
+                  fontWeight: 700,
+                  color: "rgba(255,255,255,0.82)",
                 }}
               >
-                {team?.name}
+                Pick {pick.round} ({pick.overall})
               </div>
 
-              <div
-                style={{
-                  marginTop: "0.2rem",
-                  paddingTop: "0.5rem",
-                  borderTop: "1px solid rgba(255,255,255,0.16)",
-                  fontSize: "0.74rem",
-                  lineHeight: 1.2,
-                }}
-              >
-                {pick.player_name ? `${pick.player_name} (${pick.player_position})` : "Awaiting selection"}
-              </div>
+              {hasPlayer ? (
+                <>
+                  <img
+                    src={`https://api.dicebear.com/9.x/adventurer-neutral/svg?seed=${encodeURIComponent(
+                      pick.player_name || "Player"
+                    )}`}
+                    alt={pick.player_name || "Player"}
+                    style={playerPhotoStyle}
+                  />
+                  <div style={teamNameUnderStyle}>{team?.name}</div>
+                  <div style={pickedPlayerNameStyle}>{pick.player_name}</div>
+                  <div style={pickedPlayerMetaStyle}>{pick.player_position}</div>
+                </>
+              ) : (
+                <>
+                  <div style={teamLogoStyle(team?.accent)}>
+                    <span style={{ fontSize: "1.05rem", fontWeight: 800 }}>
+                      {team?.shortName || team?.name?.slice(0, 3) || "TM"}
+                    </span>
+                  </div>
+                  <div style={teamNameUnderStyle}>{team?.name}</div>
+                </>
+              )}
             </div>
           );
         })}
@@ -132,3 +145,74 @@ export default function DraftPickRail({
     </div>
   );
 }
+
+function getPositionOutline(position?: string | null) {
+  const normalized = (position || "").toUpperCase();
+  if (normalized === "C") return "#facc15";
+  if (normalized === "LW" || normalized === "RW" || normalized === "W")
+    return "#60a5fa";
+  if (normalized === "D" || normalized === "LD" || normalized === "RD")
+    return "#f87171";
+  if (normalized === "G") return "#f8fafc";
+  return "rgba(148, 163, 184, 0.5)";
+}
+
+function withAlpha(hex: string, alpha: number) {
+  if (!hex.startsWith("#")) return hex;
+  const value = hex.slice(1);
+  const bigint = parseInt(value.length === 3 ? value.split("").map((c) => c + c).join("") : value, 16);
+  const r = (bigint >> 16) & 255;
+  const g = (bigint >> 8) & 255;
+  const b = bigint & 255;
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+function teamLogoStyle(accent?: string): React.CSSProperties {
+  return {
+    width: 64,
+    height: 64,
+    borderRadius: "999px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: "0.65rem",
+    background: `radial-gradient(circle at top, ${withAlpha(accent || "#f97316", 0.34)}, rgba(15,23,42,0.96) 68%)`,
+    border: `2px solid ${withAlpha(accent || "#f97316", 0.86)}`,
+    boxShadow: `0 10px 24px ${withAlpha(accent || "#f97316", 0.18)}`,
+    textAlign: "center",
+  };
+}
+
+const teamNameUnderStyle: React.CSSProperties = {
+  marginTop: "0.8rem",
+  textAlign: "center",
+  fontSize: "0.82rem",
+  fontWeight: 700,
+  lineHeight: 1.15,
+};
+
+const playerPhotoStyle: React.CSSProperties = {
+  width: 66,
+  height: 66,
+  borderRadius: "999px",
+  objectFit: "cover",
+  marginTop: "0.65rem",
+  background: "rgba(255,255,255,0.08)",
+  border: "2px solid rgba(255,255,255,0.12)",
+};
+
+const pickedPlayerNameStyle: React.CSSProperties = {
+  marginTop: "0.55rem",
+  textAlign: "center",
+  fontSize: "0.8rem",
+  fontWeight: 700,
+  lineHeight: 1.1,
+};
+
+const pickedPlayerMetaStyle: React.CSSProperties = {
+  marginTop: "0.2rem",
+  textAlign: "center",
+  fontSize: "0.72rem",
+  color: "rgba(255,255,255,0.76)",
+  fontWeight: 600,
+};
