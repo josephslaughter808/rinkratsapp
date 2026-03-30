@@ -74,7 +74,7 @@ export default function DraftRoomPage() {
 
       <div
         style={{
-          padding: "0.65rem 0.55rem 1rem",
+          padding: "0.65rem 0.55rem 6.25rem",
           display: "grid",
           gap: "0.75rem",
           flex: 1,
@@ -100,12 +100,15 @@ export default function DraftRoomPage() {
         style={{
           display: "flex",
           justifyContent: "space-around",
-          padding: "0.9rem 0.5rem",
+          padding: "0.85rem 0.5rem calc(0.85rem + var(--safe-bottom))",
           borderTop: "1px solid rgba(148, 163, 184, 0.18)",
           background: "rgba(7, 17, 31, 0.96)",
-          position: "sticky",
+          position: "fixed",
+          left: 0,
+          right: 0,
           bottom: 0,
-          zIndex: 50,
+          zIndex: 80,
+          backdropFilter: "blur(18px)",
         }}
       >
         <button

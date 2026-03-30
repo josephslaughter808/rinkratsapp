@@ -40,73 +40,73 @@ export default function PlayersTab({
 
   return (
     <div style={{ display: "grid", gap: "0.75rem" }}>
-      <div style={filtersRowStyle}>
-        <select
-          value={positionFilter}
-          onChange={(event) => setPositionFilter(event.target.value)}
-          style={compactSelectStyle}
-          aria-label="Filter by position"
-        >
-          {[
-            { value: "All", label: "All Pos" },
-            { value: "Offense", label: "All Off" },
-            { value: "Defense", label: "All Def" },
-            { value: "C", label: "C" },
-            { value: "LW", label: "LW" },
-            { value: "RW", label: "RW" },
-            { value: "D", label: "D" },
-            { value: "G", label: "G" },
-          ].map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
+      <div style={stickyControlsStyle}>
+        <div style={filtersRowStyle}>
+          <select
+            value={positionFilter}
+            onChange={(event) => setPositionFilter(event.target.value)}
+            style={compactSelectStyle}
+            aria-label="Filter by position"
+          >
+            {[
+              { value: "All", label: "All Pos" },
+              { value: "Offense", label: "All Off" },
+              { value: "Defense", label: "All Def" },
+              { value: "C", label: "C" },
+              { value: "LW", label: "LW" },
+              { value: "RW", label: "RW" },
+              { value: "D", label: "D" },
+              { value: "G", label: "G" },
+            ].map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
 
-        <select
-          value={handFilter}
-          onChange={(event) => setHandFilter(event.target.value)}
-          style={compactSelectStyle}
-          aria-label="Filter by handedness"
-        >
-          {[
-            { value: "All", label: "Hand" },
-            { value: "L", label: "Left" },
-            { value: "R", label: "Right" },
-          ].map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
+          <select
+            value={handFilter}
+            onChange={(event) => setHandFilter(event.target.value)}
+            style={compactSelectStyle}
+            aria-label="Filter by handedness"
+          >
+            {[
+              { value: "All", label: "Hand" },
+              { value: "L", label: "Left" },
+              { value: "R", label: "Right" },
+            ].map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
 
-        <select
-          value={tierFilter}
-          onChange={(event) => setTierFilter(event.target.value)}
-          style={compactSelectStyle}
-          aria-label="Filter by level"
-        >
-          {["All", "R", "D", "C", "B", "A", "E"].map((value) => (
-            <option key={value} value={value}>
-              {value === "All" ? "Level" : value}
-            </option>
-          ))}
-        </select>
+          <select
+            value={tierFilter}
+            onChange={(event) => setTierFilter(event.target.value)}
+            style={compactSelectStyle}
+            aria-label="Filter by level"
+          >
+            {["All", "R", "D", "C", "B", "A", "E"].map((value) => (
+              <option key={value} value={value}>
+                {value === "All" ? "Level" : value}
+              </option>
+            ))}
+          </select>
 
-        <button
-          type="button"
-          onClick={() => {
-            setPositionFilter("All");
-            setHandFilter("All");
-            setTierFilter("All");
-          }}
-          style={resetButtonStyle}
-        >
-          Reset
-        </button>
-      </div>
+          <button
+            type="button"
+            onClick={() => {
+              setPositionFilter("All");
+              setHandFilter("All");
+              setTierFilter("All");
+            }}
+            style={resetButtonStyle}
+          >
+            Reset
+          </button>
+        </div>
 
-      <div style={tableShellStyle}>
         <div style={headerRowStyle}>
           <div style={rankHeaderStyle}>RK</div>
           <div style={playerHeaderStyle}>PLAYER</div>
@@ -114,6 +114,9 @@ export default function PlayersTab({
           <div style={numberHeaderStyle}>PROJ</div>
           <div style={queueHeaderStyle} />
         </div>
+      </div>
+
+      <div style={tableShellStyle}>
 
         {visiblePlayers.map((player, index) => {
           const isQueued = queuedPlayerIds.includes(player.id);
@@ -193,6 +196,17 @@ const filtersRowStyle: React.CSSProperties = {
   gap: "0.5rem",
   flexWrap: "wrap",
   padding: "0 0.15rem",
+};
+
+const stickyControlsStyle: React.CSSProperties = {
+  position: "sticky",
+  top: 0,
+  zIndex: 30,
+  display: "grid",
+  gap: "0.35rem",
+  paddingBottom: "0.35rem",
+  background:
+    "linear-gradient(180deg, rgba(5,11,20,0.98) 0%, rgba(5,11,20,0.96) 78%, rgba(5,11,20,0) 100%)",
 };
 
 const compactSelectStyle: React.CSSProperties = {
