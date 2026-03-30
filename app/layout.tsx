@@ -1,4 +1,5 @@
 import { Oswald, Source_Sans_3 } from "next/font/google";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 const headingFont = Oswald({
@@ -11,9 +12,22 @@ const bodyFont = Source_Sans_3({
   variable: "--font-body",
 });
 
-export const metadata = {
-  title: "Hockey App",
-  description: "Root Layout",
+export const metadata: Metadata = {
+  title: "Rink Rats",
+  description: "Adult league hockey stats, highlights, draft room, film, and team communication.",
+  applicationName: "Rink Rats",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "Rink Rats",
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#07111f",
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({

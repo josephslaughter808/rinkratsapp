@@ -32,18 +32,25 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   return (
     <TeamProvider>
-      <div style={{ minHeight: "100vh", paddingBottom: hideNav ? "0px" : "80px" }}>
+      <div
+        style={{
+          minHeight: "100vh",
+          paddingBottom: hideNav ? "0px" : "calc(80px + var(--safe-bottom))",
+        }}
+      >
         
         {!hideNav && (
           <div
             style={{
               width: "100%",
               background: "#0A1A2F",
-              padding: "1rem",
+              padding:
+                "calc(0.75rem + var(--safe-top)) calc(0.9rem + var(--safe-right)) 0.75rem calc(0.9rem + var(--safe-left))",
               borderBottom: "1px solid #1f2937",
               position: "sticky",
               top: 0,
               zIndex: 1000,
+              backdropFilter: "blur(18px)",
             }}
           >
             <TeamSwitcher />
@@ -63,8 +70,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               borderTop: "1px solid #1f2937",
               display: "flex",
               justifyContent: "space-around",
-              padding: "0.75rem 0",
+              padding:
+                "0.7rem calc(0.2rem + var(--safe-right)) calc(0.7rem + var(--safe-bottom)) calc(0.2rem + var(--safe-left))",
               zIndex: 100,
+              backdropFilter: "blur(18px)",
             }}
           >
             {navItems.map(({ href, label, icon: Icon }) => {

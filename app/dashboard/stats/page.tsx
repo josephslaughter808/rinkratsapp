@@ -724,7 +724,15 @@ export default function StatsPage() {
       </section>
 
       {isStaffEditor ? (
-        <section className="glass-panel" style={{ padding: "1.25rem", marginTop: "1.25rem" }}>
+        <section
+          className="glass-panel"
+          style={{
+            padding: "1rem",
+            marginTop: "1.25rem",
+            width: "calc(100% - 1rem)",
+            marginInline: "auto",
+          }}
+        >
           <div
             style={{
               display: "flex",
@@ -748,7 +756,7 @@ export default function StatsPage() {
             </div>
           </div>
 
-          <div style={{ display: "flex", gap: "0.7rem", flexWrap: "wrap", marginBottom: "1rem" }}>
+          <div style={{ display: "flex", gap: "0.55rem", flexWrap: "wrap", marginBottom: "1rem" }}>
             {(["goal", "penalty", "hit"] as const).map((type) => (
               <button
                 key={type}
@@ -857,7 +865,7 @@ export default function StatsPage() {
             </div>
           ) : null}
 
-          <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "1rem" }}>
+          <div style={{ display: "flex", justifyContent: "stretch", marginTop: "1rem" }}>
             <button onClick={handleSaveEvent} style={saveButtonStyle}>
               Save stat event
             </button>
@@ -1016,11 +1024,13 @@ const entryGridStyle: React.CSSProperties = {
 
 const inputStyle: React.CSSProperties = {
   width: "100%",
-  padding: "0.85rem",
+  minHeight: "48px",
+  padding: "0.8rem 0.85rem",
   borderRadius: "14px",
   border: "1px solid var(--line)",
   background: "rgba(7, 17, 31, 0.72)",
   color: "var(--text)",
+  fontSize: "16px",
 };
 
 const checkboxLabelStyle: React.CSSProperties = {
@@ -1042,7 +1052,9 @@ function entryTabStyle(active: boolean): React.CSSProperties {
 }
 
 const saveButtonStyle: React.CSSProperties = {
-  padding: "0.85rem 1rem",
+  width: "100%",
+  minHeight: "50px",
+  padding: "0.9rem 1rem",
   borderRadius: "14px",
   background: "linear-gradient(135deg, #f97316, #ea580c)",
   color: "white",
