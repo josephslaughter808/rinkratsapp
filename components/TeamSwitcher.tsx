@@ -2,16 +2,23 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
-import { useTeam } from "@/context/TeamContext";
+import { SelectedTeam, useTeam } from "@/context/TeamContext";
+
+type PlayerCard = {
+  name: string | null;
+  number: number | null;
+  position: string | null;
+  profile_pic_url: string | null;
+};
 
 export default function TeamSwitcher() {
-  const { selectedTeam, setSelectedTeam } = useTeam();   // ⭐ GLOBAL CONTEXT
+  const { selectedTeam, setSelectedTeam } = useTeam();
 
-  const [teams, setTeams] = useState<any[]>([]);
+  const [teams, setTeams] = useState<SelectedTeam[]>([]);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(true);
-
-  const [player, setPlayer] = useState<any>(null);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [player, setPlayer] = useState<PlayerCard | null>(null);
 
   useEffect(() => {
     async function loadTeams() {
@@ -23,7 +30,8 @@ export default function TeamSwitcher() {
         return;
       }
 
-      // 1️⃣ Load all team memberships for this user
+      setUserId(user.id);
+
       const { data: memberships, error } = await supabase
         .from("player_teams")
         .select(`
@@ -50,35 +58,69 @@ export default function TeamSwitcher() {
         return;
       }
 
-      // 2️⃣ Map teams cleanly
-      const mappedTeams = memberships.map((row: any) => ({
+      const mappedTeams: SelectedTeam[] = memberships
+        .filter((row) => row.teams?.id && row.player_id)
+        .map((row: {
+          player_id: string;
+          role: string | null;
+          teams: {
+            id: string;
+            name: string;
+            logo_url: string | null;
+            league_id: string | null;
+          } | null;
+        }) => ({
         id: row.teams?.id,
         name: row.teams?.name,
-        teamLogo: row.teams?.logo_url,
-        leagueId: row.teams?.league_id,
+        teamLogo: row.teams?.logo_url ?? null,
+        leagueId: row.teams?.league_id ?? null,
         player_id: row.player_id,
+        role: row.role,
       }));
 
       setTeams(mappedTeams);
 
-      // 3️⃣ Set default selected team (GLOBAL)
-      if (!selectedTeam) {
+      if (!selectedTeam && mappedTeams.length > 0) {
         setSelectedTeam(mappedTeams[0]);
       }
-
-      // 4️⃣ Load player info for the selected team
-      const { data: playerData } = await supabase
-        .from("players")
-        .select("name, number, position, profile_pic_url")
-        .eq("id", mappedTeams[0].player_id)
-        .single();
-
-      setPlayer(playerData);
       setLoading(false);
     }
 
     loadTeams();
-  }, []);
+  }, [selectedTeam, setSelectedTeam]);
+
+  useEffect(() => {
+    async function loadPlayerCard() {
+      if (!selectedTeam || !userId) {
+        setPlayer(null);
+        return;
+      }
+
+      const { data: profileRow } = await supabase
+        .from("players")
+        .select("profile_pic_url")
+        .eq("user_id", userId)
+        .not("profile_pic_url", "is", null)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      const { data: selectedPlayerRow } = await supabase
+        .from("players")
+        .select("name, number, position")
+        .eq("id", selectedTeam.player_id)
+        .maybeSingle();
+
+      setPlayer({
+        name: selectedPlayerRow?.name ?? null,
+        number: selectedPlayerRow?.number ?? null,
+        position: selectedPlayerRow?.position ?? null,
+        profile_pic_url: profileRow?.profile_pic_url ?? null,
+      });
+    }
+
+    loadPlayerCard();
+  }, [selectedTeam, userId]);
 
   if (loading || !selectedTeam || !player) {
     return (
@@ -92,8 +134,8 @@ export default function TeamSwitcher() {
     );
   }
 
-  const handleSelect = (team: any) => {
-    setSelectedTeam(team);   // ⭐ GLOBAL UPDATE
+  const handleSelect = (team: SelectedTeam) => {
+    setSelectedTeam(team);
     setOpen(false);
   };
 
@@ -139,10 +181,10 @@ export default function TeamSwitcher() {
 
           <div style={{ lineHeight: "1.1", whiteSpace: "nowrap" }}>
             <div style={{ fontSize: "0.9rem", fontWeight: 600 }}>
-              {player.name}
+              {player.name || "Player"}
             </div>
             <div style={{ fontSize: "0.75rem", color: "#9CA3AF" }}>
-              #{player.number} • {player.position}
+              #{player.number ?? "--"} • {player.position ?? "--"}
             </div>
           </div>
         </div>

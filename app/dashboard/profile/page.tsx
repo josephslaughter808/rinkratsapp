@@ -4,12 +4,21 @@ import { useEffect, useState } from "react";
 import { supabase } from "../../../lib/supabaseClient";
 import { useRouter } from "next/navigation";
 
+type PlayerProfile = {
+  id: string;
+  name: string | null;
+  number: number | null;
+  position: string | null;
+  profile_pic_url: string | null;
+};
+
 export default function ProfilePage() {
   const router = useRouter();
 
   const [loading, setLoading] = useState(true);
   const [playerId, setPlayerId] = useState<string | null>(null);
-  const [player, setPlayer] = useState<any>(null);
+  const [authUserId, setAuthUserId] = useState<string | null>(null);
+  const [player, setPlayer] = useState<PlayerProfile | null>(null);
   const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
@@ -22,7 +31,8 @@ export default function ProfilePage() {
         return;
       }
 
-      // 1. Find player_id from player_teams
+      setAuthUserId(session.user.id);
+
       const { data: ptRow } = await supabase
         .from("player_teams")
         .select("player_id")
@@ -36,32 +46,42 @@ export default function ProfilePage() {
 
       setPlayerId(ptRow.player_id);
 
-      // 2. Load player info
+      const { data: sharedProfileRow } = await supabase
+        .from("players")
+        .select("profile_pic_url")
+        .eq("user_id", session.user.id)
+        .not("profile_pic_url", "is", null)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
       const { data: playerData } = await supabase
         .from("players")
-        .select("*")
+        .select("id, name, number, position, profile_pic_url")
         .eq("id", ptRow.player_id)
         .single();
 
-      setPlayer(playerData);
+      setPlayer({
+        ...playerData,
+        profile_pic_url: sharedProfileRow?.profile_pic_url ?? playerData.profile_pic_url,
+      });
       setLoading(false);
     }
 
     loadProfile();
   }, [router]);
 
-  async function uploadAvatar(event: any) {
+  async function uploadAvatar(event: React.ChangeEvent<HTMLInputElement>) {
     try {
       setUploading(true);
 
       const file = event.target.files[0];
-      if (!file) return;
+      if (!file || !playerId || !authUserId) return;
 
       const fileExt = file.name.split(".").pop();
       const fileName = `${playerId}.${fileExt}`;
       const filePath = `avatars/${fileName}`;
 
-      // Upload to Supabase Storage (your bucket name)
       const { error: uploadError } = await supabase.storage
         .from("profile pictures")
         .upload(filePath, file, { upsert: true });
@@ -75,17 +95,19 @@ export default function ProfilePage() {
 
       const publicUrl = urlData.publicUrl;
 
-      // Save URL to players table
       await supabase
         .from("players")
         .update({ profile_pic_url: publicUrl })
-        .eq("id", playerId);
+        .eq("user_id", authUserId);
 
-      // Update UI
-      setPlayer((prev: any) => ({
+      setPlayer((prev) =>
+        prev
+          ? {
         ...prev,
         profile_pic_url: publicUrl,
-      }));
+            }
+          : prev
+      );
     } catch (error) {
       console.error("Error uploading avatar:", error);
     } finally {

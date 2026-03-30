@@ -1,199 +1,117 @@
 "use client";
 
-import { useEffect, useState } from "react";
-
-type Player = {
-  id: string;
-  name: string;
-  number: number;
-  position: string;
-  level: string;
-  handedness: string;
-  points_last_season: number | null;
-  plus_minus_last_season: number | null;
-  profile: string;
-};
-
-type SortField = "name" | "level" | "points" | "plusminus" | null;
-type SortDirection = "asc" | "desc";
+import { useState } from "react";
+import { DraftPlayer } from "@/lib/mockLeagueData";
 
 export default function PlayersTab({
-  draftId,
-  userId,
+  players,
+  queuedPlayerIds,
+  draftedPlayerIds,
 }: {
-  draftId: string;
-  userId: string;
+  players: DraftPlayer[];
+  queuedPlayerIds: string[];
+  draftedPlayerIds: string[];
 }) {
-  const [players, setPlayers] = useState<Player[]>([]);
-  const [queued, setQueued] = useState<string[]>([]);
-  const [sortField, setSortField] = useState<SortField>(null);
-  const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
+  const [positionFilter, setPositionFilter] = useState<string>("All");
+  const [tierFilter, setTierFilter] = useState<string>("All");
+  const yourPickIndex = 5;
 
-  const [filterPosition, setFilterPosition] = useState("All");
-  const [filterHand, setFilterHand] = useState("All");
-
-  // Load players + queue
-  useEffect(() => {
-    const load = async () => {
-      const p = await fetch(`/api/draft/${draftId}/players`).then((r) =>
-        r.json()
-      );
-      const q = await fetch(`/api/draft/${draftId}/queue`).then((r) =>
-        r.json()
-      );
-
-      setPlayers(p);
-      setQueued(q.map((x: any) => x.player_id));
-    };
-
-    load();
-  }, [draftId]);
-
-  // Add/remove queue
-  const toggleQueue = async (playerId: string) => {
-    const isQueued = queued.includes(playerId);
-
-    if (isQueued) {
-      await fetch(`/api/draft/${draftId}/queue/${playerId}`, {
-        method: "DELETE",
-      });
-      setQueued((prev) => prev.filter((id) => id !== playerId));
-    } else {
-      await fetch(`/api/draft/${draftId}/queue`, {
-        method: "POST",
-        body: JSON.stringify({ playerId, userId }),
-      });
-      setQueued((prev) => [...prev, playerId]);
-    }
-  };
-
-  // Sorting + filtering logic stays the same
-  const filteredPlayers = players.filter((p) => {
-    if (filterPosition !== "All" && p.position !== filterPosition) return false;
-    if (filterHand !== "All" && p.handedness !== filterHand) return false;
-    return true;
-  });
-
-  const sortedPlayers = [...filteredPlayers].sort((a, b) => {
-    if (!sortField) return 0;
-
-    let valA: any;
-    let valB: any;
-
-    switch (sortField) {
-      case "name":
-        valA = a.name;
-        valB = b.name;
-        break;
-      case "level": {
-        const order = ["E", "A", "B", "C", "D", "R"];
-        valA = order.indexOf(a.level);
-        valB = order.indexOf(b.level);
-        break;
-      }
-      case "points":
-        valA = a.points_last_season ?? -9999;
-        valB = b.points_last_season ?? -9999;
-        break;
-      case "plusminus":
-        valA = a.plus_minus_last_season ?? -9999;
-        valB = b.plus_minus_last_season ?? -9999;
-        break;
-      default:
-        return 0;
-    }
-
-    if (valA < valB) return sortDirection === "asc" ? -1 : 1;
-    if (valA > valB) return sortDirection === "asc" ? 1 : -1;
-    return 0;
-  });
-
-  const gridTemplate =
-    "0.4fr 1.6fr 0.35fr 0.35fr 0.35fr 0.45fr 0.35fr 0.3fr";
+  const visiblePlayers = players
+    .filter((player) => {
+      if (draftedPlayerIds.includes(player.id)) return false;
+      if (positionFilter !== "All" && player.position !== positionFilter) return false;
+      if (tierFilter !== "All" && player.tier !== tierFilter) return false;
+      return true;
+    })
+    .sort((a, b) => b.lastSeasonPoints - a.lastSeasonPoints);
 
   return (
-    <div style={{ padding: "1rem" }}>
-      {/* FILTER BAR */}
-      {/* ... your filter UI stays unchanged ... */}
+    <div style={{ display: "grid", gap: "0.9rem" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) 152px", gap: "0.7rem" }}>
+        <div style={{ display: "flex", gap: "0.7rem", overflowX: "auto", paddingBottom: "0.1rem" }}>
+          {["All", "C", "LW", "RW", "D", "G"].map((value) => (
+            <button
+              key={value}
+              onClick={() => setPositionFilter(value)}
+              style={filterButtonStyle(positionFilter === value)}
+            >
+              {value === "All" ? "All Pos" : value}
+            </button>
+          ))}
+        </div>
 
-      {/* HEADER ROW */}
-      {/* ... your header UI stays unchanged ... */}
+        <label style={selectWrapStyle}>
+          <span style={selectLabelStyle}>Level</span>
+          <select
+            value={tierFilter}
+            onChange={(event) => setTierFilter(event.target.value)}
+            style={selectStyle}
+          >
+            {["All", "R", "D", "C", "B", "A", "E"].map((value) => (
+              <option key={value} value={value}>
+                {value === "All" ? "All Levels" : value}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
 
-      {/* PLAYER ROWS */}
-      {sortedPlayers.map((p, index) => {
-        const isQueued = queued.includes(p.id);
-        const rowBg = index % 2 === 0 ? "#141414" : "#1b1b1b";
+      {visiblePlayers.map((player, index) => {
+        const isQueued = queuedPlayerIds.includes(player.id);
 
         return (
-          <div
-            key={p.id}
-            style={{
-              display: "grid",
-              gridTemplateColumns: gridTemplate,
-              alignItems: "center",
-              padding: "0.85rem 1rem",
-              marginBottom: "0.45rem",
-              background: rowBg,
-              borderRadius: "6px",
-              border: "1px solid #1A1A1A",
-              columnGap: "0.25rem",
-            }}
-          >
-            <img
-              src={p.profile}
-              alt={p.name}
-              style={{
-                width: "40px",
-                height: "40px",
-                borderRadius: "50%",
-                objectFit: "cover",
-              }}
-            />
+          <div key={player.id} style={{ display: "grid", gap: "0.55rem" }}>
+            {index === yourPickIndex ? (
+              <div style={pickMarkerStyle}>
+                <span style={pickMarkerTagStyle}>Your Pick (R2,P8)</span>
+              </div>
+            ) : null}
 
             <div
               style={{
                 display: "flex",
-                alignItems: "baseline",
-                gap: "0.35rem",
+                gap: "0.85rem",
+                alignItems: "center",
+                padding: "0.95rem",
+                borderRadius: "18px",
+                border: "1px solid rgba(148, 163, 184, 0.16)",
+                background:
+                  "linear-gradient(180deg, rgba(15,23,42,0.92), rgba(15,23,42,0.76))",
               }}
             >
-              <div
-                style={{
-                  fontSize: "1.05rem",
-                  fontWeight: 700,
-                  color: "#3B82F6",
-                }}
-              >
-                {p.name}
-              </div>
-              <div style={{ fontSize: "0.85rem", opacity: 0.6 }}>
-                #{p.number}
-              </div>
-            </div>
+              <img
+                src={`https://api.dicebear.com/9.x/adventurer-neutral/svg?seed=${encodeURIComponent(player.name)}`}
+                alt={player.name}
+                style={avatarStyle}
+              />
 
-            <div>{p.position}</div>
-            <div>{p.level}</div>
-            <div>{p.handedness}</div>
-            <div>{p.points_last_season ?? "N/A"}</div>
-            <div>{p.plus_minus_last_season ?? "N/A"}</div>
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <div style={{ fontSize: "1.02rem", fontWeight: 700, lineHeight: 1.1 }}>
+                  {player.name}
+                </div>
+                <div style={{ marginTop: "0.25rem", color: "var(--text-muted)", fontSize: "0.86rem" }}>
+                  #{player.number} • {player.position}
+                </div>
 
-            <div style={{ textAlign: "center" }}>
-              <button
-                onClick={() => toggleQueue(p.id)}
-                style={{
-                  padding: "0.3rem 0.65rem",
-                  borderRadius: "9999px",
-                  border: `1px solid ${isQueued ? "#1D4ED8" : "#1E3A8A"}`,
-                  background: isQueued ? "#1D4ED8" : "transparent",
-                  color: isQueued ? "#FFFFFF" : "#93C5FD",
-                  fontSize: "0.7rem",
-                  cursor: "pointer",
-                  transition: "all 0.2s ease",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                {isQueued ? "Queued" : "Queue"}
-              </button>
+                <div style={statsBarStyle}>
+                  <StatPill label="Lvl" value={formatLevel(player.tier)} />
+                  <StatPill label="Hand" value={player.shoots} />
+                  <StatPill label="Pts" value={player.lastSeasonPoints} />
+                  <StatPill
+                    label="+/-"
+                    value={player.plusMinus > 0 ? `+${player.plusMinus}` : player.plusMinus}
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: "grid", gap: "0.35rem", justifyItems: "end" }}>
+                <button style={queueButtonStyle(isQueued)}>
+                  Queue
+                </button>
+                <div style={{ color: "var(--text-muted)", fontSize: "0.72rem", textAlign: "right" }}>
+                  {player.previousTeam}
+                </div>
+              </div>
             </div>
           </div>
         );
@@ -201,3 +119,141 @@ export default function PlayersTab({
     </div>
   );
 }
+
+function StatPill({
+  label,
+  value,
+}: {
+  label: string;
+  value: string | number;
+}) {
+  return (
+    <div style={statPillStyle}>
+      <div style={statPillLabelStyle}>{label}</div>
+      <div style={statPillValueStyle}>{value}</div>
+    </div>
+  );
+}
+
+function formatLevel(level: DraftPlayer["tier"]) {
+  if (level === "A") return "A";
+  if (level === "B") return "B";
+  if (level === "C") return "C";
+  return level;
+}
+
+function filterButtonStyle(active: boolean): React.CSSProperties {
+  return {
+    background: active ? "rgba(249, 115, 22, 0.18)" : "var(--surface-light)",
+    border: `1px solid ${active ? "rgba(249,115,22,0.3)" : "var(--line)"}`,
+    color: "var(--text)",
+    padding: "0.65rem 0.85rem",
+    borderRadius: "999px",
+    whiteSpace: "nowrap",
+  };
+}
+
+function queueButtonStyle(queued: boolean): React.CSSProperties {
+  return {
+    borderRadius: "999px",
+    padding: "0.46rem 0.95rem",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    background: queued
+      ? "rgba(249, 115, 22, 0.18)"
+      : "rgba(255,255,255,0.02)",
+    border: `1px solid ${
+      queued
+        ? "rgba(249,115,22,0.34)"
+        : "rgba(255,255,255,0.54)"
+    }`,
+    color: "white",
+    fontSize: "0.82rem",
+    fontWeight: 700,
+    minWidth: "82px",
+  };
+}
+
+const selectWrapStyle: React.CSSProperties = {
+  display: "grid",
+  gap: "0.25rem",
+};
+
+const selectLabelStyle: React.CSSProperties = {
+  color: "var(--text-muted)",
+  fontSize: "0.72rem",
+  letterSpacing: "0.06em",
+  textTransform: "uppercase",
+};
+
+const selectStyle: React.CSSProperties = {
+  width: "100%",
+  background: "var(--surface-light)",
+  color: "var(--text)",
+  border: "1px solid var(--line)",
+  borderRadius: "999px",
+  padding: "0.7rem 0.9rem",
+  appearance: "none",
+  WebkitAppearance: "none",
+};
+
+const avatarStyle: React.CSSProperties = {
+  width: "58px",
+  height: "58px",
+  borderRadius: "999px",
+  objectFit: "cover",
+  border: "1px solid rgba(148,163,184,0.22)",
+  background: "linear-gradient(180deg, rgba(30,41,59,0.95), rgba(15,23,42,0.95))",
+  flexShrink: 0,
+};
+
+const statsBarStyle: React.CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
+  gap: "0.45rem",
+  marginTop: "0.7rem",
+};
+
+const statPillStyle: React.CSSProperties = {
+  padding: "0.5rem 0.28rem",
+  borderRadius: "12px",
+  background: "rgba(255,255,255,0.03)",
+  border: "1px solid rgba(148,163,184,0.12)",
+  textAlign: "center",
+};
+
+const statPillLabelStyle: React.CSSProperties = {
+  color: "var(--text-muted)",
+  fontSize: "0.62rem",
+  letterSpacing: "0.08em",
+  textTransform: "uppercase",
+};
+
+const statPillValueStyle: React.CSSProperties = {
+  marginTop: "0.18rem",
+  fontSize: "0.92rem",
+  fontWeight: 700,
+};
+
+const pickMarkerStyle: React.CSSProperties = {
+  position: "relative",
+  height: "7px",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  background:
+    "linear-gradient(90deg, rgba(239,68,68,0) 0%, rgba(239,68,68,0.9) 14%, rgba(239,68,68,0.9) 86%, rgba(239,68,68,0) 100%)",
+};
+
+const pickMarkerTagStyle: React.CSSProperties = {
+  position: "relative",
+  zIndex: 1,
+  padding: "0.04rem 0.45rem",
+  borderRadius: "999px",
+  background: "rgba(7,17,31,0.98)",
+  border: "1px solid rgba(239,68,68,0.55)",
+  color: "#fca5a5",
+  fontSize: "0.6rem",
+  fontWeight: 700,
+};

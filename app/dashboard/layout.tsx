@@ -5,14 +5,14 @@ import { usePathname } from "next/navigation";
 import TeamSwitcher from "../../components/TeamSwitcher";
 import { TeamProvider } from "@/context/TeamContext";
 
-// SVG ICON IMPORTS
-import HomeIcon from "@/icons/home.svg";
-import StatsIcon from "@/icons/stats.svg";
-import FeedIcon from "@/icons/feed.svg";
-import FilmIcon from "@/icons/film.svg";
-import DraftIcon from "@/icons/draft.svg";
-import ChatIcon from "@/icons/chat.svg";
-import ProfileIcon from "@/icons/profile.svg";
+// SVG ICON COMPONENT IMPORTS (TSX)
+import HomeIcon from "@/icons/home";
+import StatsIcon from "@/icons/stats";
+import FeedIcon from "@/icons/feed";
+import FilmIcon from "@/icons/film";
+import DraftIcon from "@/icons/draft";
+import ChatIcon from "@/icons/chat";
+import ProfileIcon from "@/icons/profile";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();

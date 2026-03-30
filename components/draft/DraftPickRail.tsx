@@ -5,17 +5,16 @@ import { useEffect, useRef } from "react";
 interface Team {
   id: string;
   name: string;
-  logo_url?: string;
+  shortName?: string;
 }
 
 interface Pick {
   id: string;
   round: number;
   overall: number;
-  team_id: string;
+  teamId: string;
   player_name: string | null;
   player_position?: string | null;
-  player_photo?: string | null;
 }
 
 interface Props {
@@ -34,15 +33,6 @@ export default function DraftPickRail({
   const containerRef = useRef<HTMLDivElement>(null);
 
   const getTeam = (teamId: string) => teams.find((t) => t.id === teamId);
-
-  const getPositionColor = (pos: string | null | undefined) => {
-    if (!pos) return "black";
-    if (pos === "C") return "yellow";
-    if (pos === "LW" || pos === "RW" || pos === "F") return "dodgerblue";
-    if (pos === "LD" || pos === "RD") return "red";
-    if (pos === "G") return "white";
-    return "black";
-  };
 
   // Auto-scroll when the current pick changes
   useEffect(() => {
@@ -76,97 +66,65 @@ export default function DraftPickRail({
     >
       <div style={{ display: "flex", gap: "0.75rem", padding: "0 1rem" }}>
         {picks.map((pick) => {
-          const team = getTeam(pick.team_id);
+          const team = getTeam(pick.teamId);
           const isCurrent = pick.overall === currentPickOverall;
           const isYourNext = pick.overall === yourNextPickOverall;
-
-          const circleBorder = pick.player_name
-            ? getPositionColor(pick.player_position)
-            : "black";
 
           return (
             <div
               key={pick.id}
               data-pick={pick.overall}
               style={{
-                width: 120,               // ESPN-style wide card
-                minHeight: 115,           // enough room for all content
-                borderRadius: 10,
-                background: isCurrent ? "#12937f" : "#1A1A1A",
-                border: isYourNext ? "3px solid #00ff88" : "1px solid #333",
+                width: 148,
+                minHeight: 136,
+                borderRadius: 18,
+                background: isCurrent
+                  ? "linear-gradient(180deg, rgba(249,115,22,0.95), rgba(194,65,12,0.95))"
+                  : "linear-gradient(180deg, rgba(15,23,42,0.94), rgba(15,23,42,0.76))",
+                border: isYourNext
+                  ? "2px solid rgba(34,197,94,0.9)"
+                  : "1px solid rgba(148, 163, 184, 0.16)",
                 display: "flex",
                 flexDirection: "column",
-                alignItems: "center",
-                justifyContent: "flex-start",
-                padding: "0.45rem",
+                justifyContent: "space-between",
+                padding: "0.7rem",
                 color: "white",
                 flexShrink: 0,
-                transformStyle: "preserve-3d",
-                transition: "transform 0.5s",
-                transform: pick.player_name ? "rotateY(180deg)" : "none",
+                boxShadow: isCurrent ? "0 16px 36px rgba(194,65,12,0.28)" : "none",
               }}
             >
-              {/* PICK NUMBER */}
-              <div style={{ fontSize: "0.7rem", opacity: 0.8 }}>
-                Pick {pick.round} ({pick.overall})
+              <div style={{ display: "flex", justifyContent: "space-between", gap: "0.4rem", fontSize: "0.72rem" }}>
+                <span style={{ opacity: 0.8 }}>R{pick.round}</span>
+                <span style={{ opacity: 0.8 }}>#{pick.overall}</span>
               </div>
 
-              {/* CIRCLE IMAGE */}
-              <div
-                style={{
-                  width: 50,
-                  height: 50,
-                  borderRadius: "50%",
-                  overflow: "hidden",
-                  border: `3px solid ${circleBorder}`,
-                  margin: "0.35rem 0",
-                  flexShrink: 0,
-                  display: "flex",
-                  justifyContent: "center",
-                  alignItems: "center",
-                  background: "#000",
-                }}
-              >
-                {pick.player_photo ? (
-                  <img
-                    src={pick.player_photo}
-                    alt="player"
-                    style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                  />
-                ) : (
-                  <img
-                    src={team?.logo_url || "/placeholder-logo.png"}
-                    alt="team"
-                    style={{ width: "70%", height: "70%", objectFit: "contain" }}
-                  />
-                )}
+              <div style={{ minHeight: "56px" }}>
+                <div style={{ fontSize: "1.1rem", fontWeight: 700 }}>{team?.shortName || team?.name}</div>
+                <div style={{ fontSize: "0.75rem", color: "rgba(255,255,255,0.75)", marginTop: "0.2rem" }}>
+                  {pick.player_name ? pick.player_position : "On deck"}
+                </div>
               </div>
 
-              {/* TEAM NAME */}
               <div
                 style={{
-                  fontSize: "0.65rem",
-                  textAlign: "center",
-                  lineHeight: 1.1,
+                  fontSize: "0.75rem",
+                  lineHeight: 1.2,
                 }}
               >
                 {team?.name}
               </div>
 
-              {/* PLAYER NAME */}
-              {pick.player_name && (
-                <div
-                  style={{
-                    fontSize: "0.6rem",
-                    marginTop: "0.2rem",
-                    opacity: 0.9,
-                    textAlign: "center",
-                    lineHeight: 1.1,
-                  }}
-                >
-                  {pick.player_name} ({pick.player_position})
-                </div>
-              )}
+              <div
+                style={{
+                  marginTop: "0.2rem",
+                  paddingTop: "0.5rem",
+                  borderTop: "1px solid rgba(255,255,255,0.16)",
+                  fontSize: "0.74rem",
+                  lineHeight: 1.2,
+                }}
+              >
+                {pick.player_name ? `${pick.player_name} (${pick.player_position})` : "Awaiting selection"}
+              </div>
             </div>
           );
         })}

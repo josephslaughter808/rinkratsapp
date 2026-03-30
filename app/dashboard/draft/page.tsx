@@ -7,76 +7,126 @@ import QueueTab from "@/components/draft/QueueTab";
 import BoardTab from "@/components/draft/BoardTab";
 import RostersTab from "@/components/draft/RostersTab";
 import DraftPickRail from "@/components/draft/DraftPickRail";
+import {
+  draftConfig,
+  draftedPlayerIds,
+  draftPicks,
+  draftPlayers,
+  draftQueue,
+  getPlayer,
+  getTeam,
+  teams,
+} from "@/lib/mockLeagueData";
 
 type DraftTab = "players" | "queue" | "board" | "rosters";
 
 export default function DraftRoomPage() {
   const [activeTab, setActiveTab] = useState<DraftTab>("players");
+  const onClockTeam =
+    getTeam(
+      draftPicks.find((pick) => pick.overall === draftConfig.currentPickOverall)
+        ?.teamId || ""
+    )?.name || "League Team";
+  const queuePlayers = draftQueue
+    .map((playerId) => getPlayer(playerId))
+    .filter((player): player is NonNullable<typeof player> => Boolean(player));
+  const transformedPicks = draftPicks.map((pick) => {
+    const player = getPlayer(pick.playerId);
 
-  // TEMP MOCK DATA — replace with real API data later
-  const teams = [
-    { id: "1", name: "Team 1" },
-    { id: "2", name: "Team 2" },
-    { id: "3", name: "Team 3" },
-  ];
-
-  const picks = [
-    { id: "p1", round: 1, overall: 1, team_id: "1", player_name: null },
-    { id: "p2", round: 1, overall: 2, team_id: "2", player_name: null },
-    { id: "p3", round: 1, overall: 3, team_id: "3", player_name: null },
-    { id: "p4", round: 2, overall: 4, team_id: "1", player_name: null },
-  ];
-
-  const pickNumber = 1; // TEMP — will come from server logic later
+    return {
+      id: pick.id,
+      round: pick.round,
+      overall: pick.overall,
+      teamId: pick.teamId,
+      player_name: player?.name || null,
+      player_position: player?.position || null,
+    };
+  });
 
   return (
     <div
       style={{
-        height: "100vh",
+        minHeight: "100vh",
         display: "flex",
         flexDirection: "column",
-        background: "#000",
+        background:
+          "radial-gradient(circle at top right, rgba(249,115,22,0.12), transparent 24%), linear-gradient(180deg, #07111f 0%, #050b14 100%)",
         color: "white",
       }}
     >
-      {/* HEADER */}
       <DraftHeader
-        currentTeam="Team 1"
-        pickNumber={pickNumber}
-        round={1}
-        totalRounds={10}
-        timeLeft={60}
+        currentTeam={onClockTeam}
+        pickNumber={draftConfig.currentPickOverall}
+        round={draftConfig.currentRound}
+        totalRounds={draftConfig.totalRounds}
+        timeLeft={draftConfig.timeLeft}
         onExit={() => {
-          alert("Exit draft clicked");
+          window.history.back();
         }}
       />
 
-      {/* PICK RAIL */}
       <DraftPickRail
         teams={teams}
-        picks={picks}
-        currentPickOverall={pickNumber}
+        picks={transformedPicks}
+        currentPickOverall={draftConfig.currentPickOverall}
+        yourNextPickOverall={draftConfig.yourNextPickOverall}
       />
 
-      {/* MAIN CONTENT */}
-      <div style={{ flex: 1, overflowY: "auto" }}>
-        {activeTab === "players" && (
-          // @ts-expect-error: draftId/userId will be wired later
-          <PlayersTab />
-        )}
-        {activeTab === "queue" && <QueueTab />}
-        {activeTab === "board" && <BoardTab />}
-        {activeTab === "rosters" && <RostersTab />}
+      <div
+        style={{
+          padding: "1rem",
+          display: "grid",
+          gap: "1rem",
+          flex: 1,
+        }}
+      >
+        <section className="glass-panel" style={{ padding: "1rem" }}>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              gap: "1rem",
+              flexWrap: "wrap",
+              marginBottom: "1rem",
+            }}
+          >
+            <div>
+              <div style={{ color: "var(--accent-light)", marginBottom: "0.25rem" }}>
+                {draftConfig.title}
+              </div>
+              <h1 style={{ fontSize: "2rem" }}>Draft room</h1>
+            </div>
+            <div style={{ color: "var(--text-muted)", maxWidth: "430px", textAlign: "right" }}>
+              Players join leagues by code, stay unassigned until draft or manager
+              placement, and move into team rosters as picks are finalized.
+            </div>
+          </div>
+
+          {activeTab === "players" && (
+            <PlayersTab
+              players={draftPlayers}
+              queuedPlayerIds={draftQueue}
+              draftedPlayerIds={draftedPlayerIds}
+            />
+          )}
+          {activeTab === "queue" && <QueueTab players={queuePlayers} />}
+          {activeTab === "board" && (
+            <BoardTab picks={draftPicks} teams={teams} players={draftPlayers} />
+          )}
+          {activeTab === "rosters" && (
+            <RostersTab teams={teams} picks={draftPicks} players={draftPlayers} />
+          )}
+        </section>
       </div>
 
-      {/* BOTTOM NAV */}
       <nav
         style={{
           display: "flex",
           justifyContent: "space-around",
-          padding: "0.75rem 0",
-          borderTop: "1px solid #12937f",
-          background: "#0A0A0A",
+          padding: "0.9rem 0.5rem",
+          borderTop: "1px solid rgba(148, 163, 184, 0.18)",
+          background: "rgba(7, 17, 31, 0.96)",
           position: "sticky",
           bottom: 0,
           zIndex: 50,
@@ -85,7 +135,7 @@ export default function DraftRoomPage() {
         <button
           onClick={() => setActiveTab("players")}
           style={{
-            color: activeTab === "players" ? "#12937f" : "white",
+            color: activeTab === "players" ? "#fdba74" : "white",
             fontWeight: activeTab === "players" ? 700 : 400,
             background: "none",
             border: "none",
@@ -96,14 +146,14 @@ export default function DraftRoomPage() {
             gap: "0.2rem",
           }}
         >
-          <span style={{ fontSize: "1.4rem" }}>👤</span>
+          <span style={{ fontSize: "1rem" }}>Players</span>
           Players
         </button>
 
         <button
           onClick={() => setActiveTab("queue")}
           style={{
-            color: activeTab === "queue" ? "#12937f" : "white",
+            color: activeTab === "queue" ? "#fdba74" : "white",
             fontWeight: activeTab === "queue" ? 700 : 400,
             background: "none",
             border: "none",
@@ -114,14 +164,14 @@ export default function DraftRoomPage() {
             gap: "0.2rem",
           }}
         >
-          <span style={{ fontSize: "1.4rem" }}>📥</span>
+          <span style={{ fontSize: "1rem" }}>Queue</span>
           Queue
         </button>
 
         <button
           onClick={() => setActiveTab("board")}
           style={{
-            color: activeTab === "board" ? "#12937f" : "white",
+            color: activeTab === "board" ? "#fdba74" : "white",
             fontWeight: activeTab === "board" ? 700 : 400,
             background: "none",
             border: "none",
@@ -132,14 +182,14 @@ export default function DraftRoomPage() {
             gap: "0.2rem",
           }}
         >
-          <span style={{ fontSize: "1.4rem" }}>📋</span>
+          <span style={{ fontSize: "1rem" }}>Board</span>
           Board
         </button>
 
         <button
           onClick={() => setActiveTab("rosters")}
           style={{
-            color: activeTab === "rosters" ? "#12937f" : "white",
+            color: activeTab === "rosters" ? "#fdba74" : "white",
             fontWeight: activeTab === "rosters" ? 700 : 400,
             background: "none",
             border: "none",
@@ -150,7 +200,7 @@ export default function DraftRoomPage() {
             gap: "0.2rem",
           }}
         >
-          <span style={{ fontSize: "1.4rem" }}>🧑‍🤝‍🧑</span>
+          <span style={{ fontSize: "1rem" }}>Rosters</span>
           Rosters
         </button>
       </nav>

@@ -2,15 +2,24 @@
 
 import { createContext, useContext, useState } from "react";
 
+export type SelectedTeam = {
+  id: string;
+  name: string;
+  teamLogo: string | null;
+  leagueId: string | null;
+  player_id: string;
+  role?: string | null;
+};
+
 type TeamContextType = {
-  selectedTeam: any;
-  setSelectedTeam: (team: any) => void;
+  selectedTeam: SelectedTeam | null;
+  setSelectedTeam: (team: SelectedTeam | null) => void;
 };
 
 const TeamContext = createContext<TeamContextType | undefined>(undefined);
 
 export function TeamProvider({ children }: { children: React.ReactNode }) {
-  const [selectedTeam, setSelectedTeam] = useState<any>(null);
+  const [selectedTeam, setSelectedTeam] = useState<SelectedTeam | null>(null);
 
   return (
     <TeamContext.Provider value={{ selectedTeam, setSelectedTeam }}>
