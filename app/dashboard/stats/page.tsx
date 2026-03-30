@@ -827,7 +827,15 @@ function StatsTable({
   routerPush: (href: string) => void;
 }) {
   return (
-    <section className="glass-panel" style={{ padding: "1rem" }}>
+    <section
+      className="glass-panel"
+      style={{
+        padding: "0.8rem",
+        width: "calc(100% - 1.5rem)",
+        margin: "0 auto",
+        overflow: "hidden",
+      }}
+    >
       <h2 style={{ fontSize: "1.3rem", marginBottom: "0.75rem" }}>{title}</h2>
 
       <div>
@@ -866,7 +874,7 @@ function StatsTable({
               style={{
                 display: "grid",
                 gridTemplateColumns: statsGridTemplate,
-                padding: "0.75rem",
+                padding: "0.68rem 0.55rem",
                 alignItems: "center",
                 cursor: "pointer",
                 background: isCurrent
@@ -878,9 +886,10 @@ function StatsTable({
                   : "3px solid transparent",
                 fontWeight: isCurrent ? 700 : 400,
                 textAlign: "center",
+                fontSize: "0.88rem",
               }}
             >
-              <div style={{ textAlign: "left" }}>{player.name}</div>
+              <div style={{ textAlign: "left", overflow: "hidden" }}>{player.name}</div>
               <div>{player.points}</div>
               <div>{player.goals}</div>
               <div>{player.assists}</div>
@@ -955,14 +964,14 @@ const saveButtonStyle: React.CSSProperties = {
   fontWeight: 700,
 };
 
-const statsGridTemplate = "minmax(132px, 1.7fr) repeat(5, minmax(44px, 0.62fr))";
+const statsGridTemplate = "minmax(92px, 1.3fr) repeat(5, minmax(30px, 0.48fr))";
 
 const tableHeaderStyle: React.CSSProperties = {
   display: "grid",
   gridTemplateColumns: statsGridTemplate,
-  padding: "0.5rem 0.75rem",
+  padding: "0.45rem 0.55rem",
   color: "#9CA3AF",
-  fontSize: "0.8rem",
+  fontSize: "0.68rem",
   fontWeight: 600,
   textAlign: "center",
   boxShadow: "0 2px 4px rgba(0,0,0,0.35)",
