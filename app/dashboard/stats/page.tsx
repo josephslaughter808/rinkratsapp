@@ -71,6 +71,13 @@ type TeamFallback = {
   leagueStats: StatRow[];
 };
 
+type PersonalSeasonStat = {
+  points: number | null;
+  goals: number | null;
+  assists: number | null;
+  pim: number | null;
+};
+
 function generatePreviewPlayers(
   prefix: string,
   label: string,
@@ -107,6 +114,31 @@ function mergeStatRows(primary: StatRow[], supplemental: StatRow[]) {
   }
 
   return merged;
+}
+
+function upsertCurrentPlayerRow(
+  rows: StatRow[],
+  playerId: string,
+  playerName: string,
+  personal: PersonalSeasonStat | null | undefined
+) {
+  const nextRow: StatRow = {
+    player_id: playerId,
+    name: playerName || "Unknown Player",
+    points: personal?.points ?? 0,
+    goals: personal?.goals ?? 0,
+    assists: personal?.assists ?? 0,
+    pim: personal?.pim ?? 0,
+    hits: rows.find((row) => row.player_id === playerId)?.hits ?? 0,
+  };
+
+  const existingIndex = rows.findIndex((row) => row.player_id === playerId);
+
+  if (existingIndex === -1) {
+    return [...rows, nextRow];
+  }
+
+  return rows.map((row, index) => (index === existingIndex ? { ...row, ...nextRow } : row));
 }
 
 const fallbackStatsByTeam: Record<string, TeamFallback> = {
@@ -349,7 +381,7 @@ export default function StatsPage() {
 
       const { data: playerInfo } = await supabase
         .from("players")
-        .select("number, position, profile_pic_url")
+        .select("name, number, position, profile_pic_url")
         .eq("id", playerId)
         .maybeSingle();
 
@@ -389,10 +421,29 @@ export default function StatsPage() {
       const mappedTeamStats = mapSeasonStatsRows(teamPlayers as SeasonStatsRow[]);
       const mappedLeagueStats = mapSeasonStatsRows(leaguePlayers as SeasonStatsRow[]);
 
-      const nextTeamStats =
+      const baseTeamStats =
         mappedTeamStats.length > 0 ? mappedTeamStats : fallback?.teamStats ?? [];
-      const nextLeagueStats =
-        mappedLeagueStats.length > 0 ? mappedLeagueStats : fallback?.leagueStats ?? nextTeamStats;
+      const baseLeagueStats =
+        mappedLeagueStats.length > 0 ? mappedLeagueStats : fallback?.leagueStats ?? baseTeamStats;
+
+      const currentPlayerName =
+        playerInfo?.name ??
+        baseTeamStats.find((row) => row.player_id === playerId)?.name ??
+        userEmail?.split("@")[0] ??
+        "Player";
+
+      const nextTeamStats = upsertCurrentPlayerRow(
+        baseTeamStats,
+        playerId,
+        currentPlayerName,
+        personal
+      );
+      const nextLeagueStats = upsertCurrentPlayerRow(
+        baseLeagueStats,
+        playerId,
+        currentPlayerName,
+        personal
+      );
 
       const personalRow =
         nextTeamStats.find((row) => row.player_id === playerId) ||
