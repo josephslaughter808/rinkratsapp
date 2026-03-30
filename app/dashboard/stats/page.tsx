@@ -565,53 +565,74 @@ export default function StatsPage() {
       <section className="glass-panel" style={{ padding: "1.25rem", marginBottom: "1rem" }}>
         <div
           style={{
-            display: "flex",
-            justifyContent: "flex-start",
+            display: "grid",
             gap: "1rem",
-            alignItems: "center",
-            flexWrap: "wrap",
           }}
         >
-          <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "96px minmax(0, 1fr)",
+              gap: "0.9rem",
+              alignItems: "start",
+            }}
+          >
             <img
               src={playerProfile.profile_pic_url || "https://via.placeholder.com/120?text=?"}
               alt="Profile"
               style={{
-                width: "120px",
-                height: "120px",
+                width: "96px",
+                height: "96px",
                 borderRadius: "50%",
                 objectFit: "cover",
                 border: "3px solid var(--accent-light)",
               }}
             />
 
-            <div>
-              <div style={{ color: "var(--accent-light)", marginBottom: "0.35rem" }}>
-                {selectedTeam.name} • {season}
+            <div style={{ minWidth: 0, paddingTop: "0.15rem" }}>
+              <div style={{ color: "var(--accent-light)", marginBottom: "0.15rem" }}>
+                {selectedTeam.name}
               </div>
-              <h1 style={{ fontSize: "2rem" }}>{userEmail?.split("@")[0]}</h1>
-              <p style={{ marginTop: "0.25rem", color: "var(--text-muted)" }}>
-                #{playerProfile.number ?? "00"}
-                {playerProfile.position && (
-                  <span
-                    style={{
-                      marginLeft: "8px",
-                      padding: "2px 10px",
-                      borderRadius: "999px",
-                      border: `1px solid ${positionColor(playerProfile.position)}`,
-                      background:
-                        "linear-gradient(135deg, rgba(15,23,42,0.95), rgba(15,23,42,0.8))",
-                      color: "#FFFFFF",
-                      fontSize: "0.75rem",
-                      fontWeight: 800,
-                      letterSpacing: "0.06em",
-                      textTransform: "uppercase",
-                    }}
-                  >
-                    {playerProfile.position}
-                  </span>
-                )}
-              </p>
+              <div style={{ color: "var(--text-muted)" }}>{selectedTeam.name}</div>
+              <div style={{ color: "var(--text-muted)", marginTop: "0.15rem" }}>
+                {season}
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <h1 style={{ fontSize: "1.85rem", lineHeight: 1.05 }}>
+              {userEmail?.split("@")[0]}
+            </h1>
+            <div
+              style={{
+                marginTop: "0.45rem",
+                display: "flex",
+                alignItems: "center",
+                gap: "0.45rem",
+                flexWrap: "wrap",
+                color: "var(--text-muted)",
+              }}
+            >
+              <span>#{playerProfile.number ?? "00"}</span>
+              {playerProfile.position ? (
+                <span
+                  style={{
+                    padding: "2px 10px",
+                    borderRadius: "999px",
+                    border: `1px solid ${positionColor(playerProfile.position)}`,
+                    background:
+                      "linear-gradient(135deg, rgba(15,23,42,0.95), rgba(15,23,42,0.8))",
+                    color: "#FFFFFF",
+                    fontSize: "0.75rem",
+                    fontWeight: 800,
+                    letterSpacing: "0.06em",
+                    textTransform: "uppercase",
+                  }}
+                >
+                  {playerProfile.position}
+                </span>
+              ) : null}
             </div>
           </div>
         </div>
