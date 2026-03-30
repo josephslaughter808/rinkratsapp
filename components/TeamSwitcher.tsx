@@ -173,14 +173,14 @@ export default function TeamSwitcher() {
         style={{
           position: "relative",
           display: "flex",
-          alignItems: "flex-start",
+          alignItems: "center",
           justifyContent: "space-between",
           background: "#0A1A2F",
-          padding: "0.6rem 1rem 0.7rem",
+          padding: "0.45rem 0.9rem 0.55rem",
           borderRadius: "6px",
           cursor: "pointer",
           userSelect: "none",
-          minHeight: "72px",
+          minHeight: "66px",
           overflow: "visible",
         }}
       >
@@ -196,8 +196,8 @@ export default function TeamSwitcher() {
             src={player.profile_pic_url || "https://via.placeholder.com/60?text=?"}
             alt="Profile"
             style={{
-              width: "60px",
-              height: "60px",
+              width: "54px",
+              height: "54px",
               borderRadius: "50%",
               objectFit: "cover",
               flexShrink: 0,
@@ -212,9 +212,11 @@ export default function TeamSwitcher() {
             transform: "translateX(-50%)",
             display: "grid",
             justifyItems: "center",
-            gap: "0.35rem",
+            gap: "0.2rem",
             pointerEvents: "none",
-            top: "0.5rem",
+            top: "0.35rem",
+            width: "calc(100% - 136px)",
+            textAlign: "center",
           }}
         >
           <div style={playerIdentityRowStyle}>
@@ -259,8 +261,8 @@ export default function TeamSwitcher() {
             src={selectedTeam.teamLogo || "https://via.placeholder.com/60?text=Team"}
             alt="league logo"
             style={{
-              width: "60px",
-              height: "60px",
+              width: "54px",
+              height: "54px",
               borderRadius: "50%",
               objectFit: "cover",
             }}
@@ -273,7 +275,7 @@ export default function TeamSwitcher() {
         <div
           style={{
             position: "absolute",
-            top: "4.7rem",
+            top: "4.3rem",
             left: 0,
             width: "100%",
             background: "#0F213A",
@@ -309,6 +311,9 @@ const playerIdentityRowStyle: React.CSSProperties = {
   justifyContent: "center",
   gap: "0.35rem",
   whiteSpace: "nowrap",
+  maxWidth: "100%",
+  overflow: "hidden",
+  textOverflow: "ellipsis",
 };
 
 function positionPillStyle(position: string): React.CSSProperties {

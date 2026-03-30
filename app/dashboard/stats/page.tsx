@@ -623,6 +623,8 @@ export default function StatsPage() {
             display: "grid",
             gridTemplateColumns: "repeat(5, minmax(0, 1fr))",
             gap: "0.75rem",
+            maxWidth: "calc(100% - 2.5rem)",
+            margin: "0 auto",
           }}
         >
           {statColumns.map((stat) => (
@@ -977,7 +979,7 @@ const sortableHeaderStyle: React.CSSProperties = {
 
 const tableHeaderStickyStyle: React.CSSProperties = {
   position: "sticky",
-  top: "79px",
+  top: "96px",
   zIndex: 30,
   background: "rgba(13, 24, 42, 0.98)",
   boxShadow: "0 8px 20px rgba(1, 5, 16, 0.28)",
