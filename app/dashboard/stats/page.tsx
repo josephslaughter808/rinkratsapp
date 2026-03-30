@@ -1132,7 +1132,7 @@ const globalStatsHeaderWrapStyle: React.CSSProperties = {
 
 const globalStatsHeaderStyle: React.CSSProperties = {
   position: "fixed",
-  top: "calc(var(--app-topbar-height) - 12px)",
+  top: "calc(var(--app-topbar-height) + 6px)",
   left: "50%",
   transform: "translateX(-50%)",
   width: "calc(100% - 2.3rem)",
