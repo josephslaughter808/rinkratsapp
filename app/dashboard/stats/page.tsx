@@ -898,40 +898,42 @@ function StatsTable({
           })}
         </div>
 
-        {rows.map((player) => {
-          const isCurrent = player.player_id === playerId;
+        <div style={tableRowsWrapStyle}>
+          {rows.map((player) => {
+            const isCurrent = player.player_id === playerId;
 
-          return (
-            <div
-              key={player.player_id}
-              onClick={() => routerPush(`/dashboard/player/${player.player_id}`)}
-              style={{
-                display: "grid",
-                gridTemplateColumns: statsGridTemplate,
-                padding: "0.68rem 0.55rem",
-                alignItems: "center",
-                cursor: "pointer",
-                background: isCurrent
-                  ? "linear-gradient(90deg, rgba(96,165,250,0.18), rgba(37,99,235,0.08))"
-                  : "transparent",
-                borderBottom: "1px solid rgba(31,41,55,0.9)",
-                borderLeft: isCurrent
-                  ? "3px solid rgba(125,211,252,0.85)"
-                  : "3px solid transparent",
-                fontWeight: isCurrent ? 700 : 400,
-                textAlign: "center",
-                fontSize: "0.88rem",
-              }}
-            >
-              <div style={{ textAlign: "left", overflow: "hidden" }}>{player.name}</div>
-              <div>{player.points}</div>
-              <div>{player.goals}</div>
-              <div>{player.assists}</div>
-              <div>{player.pim}</div>
-              <div>{player.hits}</div>
-            </div>
-          );
-        })}
+            return (
+              <div
+                key={player.player_id}
+                onClick={() => routerPush(`/dashboard/player/${player.player_id}`)}
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: statsGridTemplate,
+                  padding: "0.68rem 0.55rem",
+                  alignItems: "center",
+                  cursor: "pointer",
+                  background: isCurrent
+                    ? "linear-gradient(90deg, rgba(96,165,250,0.18), rgba(37,99,235,0.08))"
+                    : "transparent",
+                  borderBottom: "1px solid rgba(31,41,55,0.9)",
+                  borderLeft: isCurrent
+                    ? "3px solid rgba(125,211,252,0.85)"
+                    : "3px solid transparent",
+                  fontWeight: isCurrent ? 700 : 400,
+                  textAlign: "center",
+                  fontSize: "0.88rem",
+                }}
+              >
+                <div style={{ textAlign: "left", overflow: "hidden" }}>{player.name}</div>
+                <div>{player.points}</div>
+                <div>{player.goals}</div>
+                <div>{player.assists}</div>
+                <div>{player.pim}</div>
+                <div>{player.hits}</div>
+              </div>
+            );
+          })}
+        </div>
       </div>
     </section>
   );
@@ -1026,4 +1028,8 @@ const tableHeaderStickyStyle: React.CSSProperties = {
   zIndex: 30,
   background: "rgba(13, 24, 42, 0.98)",
   boxShadow: "0 8px 20px rgba(1, 5, 16, 0.28)",
+};
+
+const tableRowsWrapStyle: React.CSSProperties = {
+  paddingTop: "2.35rem",
 };
