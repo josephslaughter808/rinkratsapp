@@ -114,7 +114,7 @@ export default function PlayersTab({
           <div style={playerHeaderStyle}>PLAYER</div>
           <div style={numberHeaderStyle}>LVL</div>
           <div style={numberHeaderStyle}>PTS</div>
-          <div style={numberHeaderStyle}>HAND</div>
+          <div style={handHeaderStyle}>HAND</div>
           <div style={numberHeaderStyle}>+/-</div>
           <div style={queueHeaderStyle} />
         </div>
@@ -152,7 +152,7 @@ export default function PlayersTab({
 
                 <div style={numberCellStyle}>{formatLevel(player.tier)}</div>
                 <div style={numberCellStyle}>{player.lastSeasonPoints}</div>
-                <div style={numberCellStyle}>{player.shoots}</div>
+                <div style={handCellStyle}>{player.shoots}</div>
                 <div style={numberCellStyle}>
                   {player.plusMinus > 0 ? `+${player.plusMinus}` : player.plusMinus}
                 </div>
@@ -250,9 +250,9 @@ const tableShellStyle: React.CSSProperties = {
 
 const headerRowStyle: React.CSSProperties = {
   display: "grid",
-  gridTemplateColumns: "34px minmax(0, 1.46fr) 30px 38px 34px 48px 72px",
+  gridTemplateColumns: "34px minmax(0, 1.42fr) 32px 42px 42px 48px 72px",
   alignItems: "center",
-  gap: "0.34rem",
+  gap: "0.36rem",
   padding: "0.45rem 0.35rem 0.35rem",
   color: "rgba(255,255,255,0.65)",
   fontSize: "0.66rem",
@@ -272,15 +272,20 @@ const numberHeaderStyle: React.CSSProperties = {
   textAlign: "right",
 };
 
+const handHeaderStyle: React.CSSProperties = {
+  textAlign: "center",
+  paddingLeft: "0.12rem",
+};
+
 const queueHeaderStyle: React.CSSProperties = {
   textAlign: "right",
 };
 
 const playerRowStyle: React.CSSProperties = {
   display: "grid",
-  gridTemplateColumns: "34px minmax(0, 1.46fr) 30px 38px 34px 48px 72px",
+  gridTemplateColumns: "34px minmax(0, 1.42fr) 32px 42px 42px 48px 72px",
   alignItems: "center",
-  gap: "0.34rem",
+  gap: "0.36rem",
   minHeight: "50px",
   padding: "0.38rem 0.35rem",
   borderTop: "1px solid rgba(148,163,184,0.08)",
@@ -328,7 +333,15 @@ const numberCellStyle: React.CSSProperties = {
   color: "rgba(255,255,255,0.78)",
   fontSize: "0.8rem",
   fontWeight: 600,
-  paddingRight: "0.08rem",
+  paddingRight: "0.06rem",
+};
+
+const handCellStyle: React.CSSProperties = {
+  textAlign: "center",
+  color: "rgba(255,255,255,0.78)",
+  fontSize: "0.8rem",
+  fontWeight: 600,
+  paddingLeft: "0.12rem",
 };
 
 const queueCellStyle: React.CSSProperties = {
