@@ -2,10 +2,9 @@ import type { CSSProperties, ReactNode, SVGProps } from "react";
 
 type GlowIconProps = SVGProps<SVGSVGElement> & {
   children: ReactNode;
-  tail?: ReactNode;
 };
 
-export function GlowIcon({ children, tail, style, ...props }: GlowIconProps) {
+export function GlowIcon({ children, style, ...props }: GlowIconProps) {
   return (
     <svg
       viewBox="0 0 24 24"
@@ -19,7 +18,6 @@ export function GlowIcon({ children, tail, style, ...props }: GlowIconProps) {
         ...style,
       }}
     >
-      <g opacity="0.4">{tail}</g>
       <g>{children}</g>
     </svg>
   );
@@ -31,14 +29,4 @@ export const baseStroke: CSSProperties = {
   strokeLinecap: "round",
   strokeLinejoin: "round",
   vectorEffect: "non-scaling-stroke",
-};
-
-export const glowTailStyle: CSSProperties = {
-  stroke: "currentColor",
-  strokeWidth: 1.6,
-  strokeLinecap: "round",
-  strokeLinejoin: "round",
-  vectorEffect: "non-scaling-stroke",
-  opacity: 0.55,
-  filter: "drop-shadow(0 0 4px currentColor)",
 };

@@ -1,16 +1,13 @@
-import { GlowIcon, baseStroke, glowTailStyle } from "./shared";
+import { GlowIcon, baseStroke } from "./shared";
 
 export default function DraftIcon(props: React.SVGProps<SVGSVGElement>) {
   return (
-    <GlowIcon
-      {...props}
-      tail={<path d="M4.7 17.1C6.6 18.2 8.3 18.7 10.8 19.1" style={glowTailStyle} />}
-    >
-      <path d="M7 5.5H15.5L17 7V18.5H7V5.5Z" style={baseStroke} />
-      <path d="M15.5 5.5V7H17" style={baseStroke} />
-      <path d="M9.5 10H14.5" style={baseStroke} />
-      <path d="M9.5 13H14.5" style={baseStroke} />
-      <path d="M9.5 16H13" style={baseStroke} />
+    <GlowIcon {...props}>
+      <path d="M6.5 5.5H14.8L17 7.7V18.5H6.5V5.5Z" style={baseStroke} />
+      <path d="M14.8 5.5V7.7H17" style={baseStroke} />
+      <path d="M9 10H14" style={baseStroke} />
+      <path d="M9 13H13.2" style={baseStroke} />
+      <path d="M14.8 15.3L18.5 11.6L19.9 13L16.2 16.7L14.2 17.2L14.8 15.3Z" style={baseStroke} />
     </GlowIcon>
   );
 }
