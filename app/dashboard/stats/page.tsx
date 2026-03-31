@@ -321,6 +321,7 @@ export default function StatsPage() {
   });
   const [teamStats, setTeamStats] = useState<StatRow[]>([]);
   const [leagueStats, setLeagueStats] = useState<StatRow[]>([]);
+  const [leagueName, setLeagueName] = useState<string | null>(null);
   const [season, setSeason] = useState("2026a");
   const [teamSortField, setTeamSortField] = useState<keyof StatRow>("points");
   const [teamSortDir, setTeamSortDir] = useState<"asc" | "desc">("desc");
@@ -377,12 +378,13 @@ export default function StatsPage() {
       const { data: leagueRow } = leagueId
         ? await supabase
             .from("leagues")
-            .select("season")
+            .select("name, season")
             .eq("id", leagueId)
             .maybeSingle()
         : { data: null };
 
       const nextSeason = leagueRow?.season ?? fallbackStatsByTeam[selectedTeam.name]?.season ?? "2026a";
+      setLeagueName(leagueRow?.name ?? null);
       setSeason(nextSeason);
 
       const { data: playerInfo } = await supabase
@@ -640,7 +642,18 @@ export default function StatsPage() {
       className="page-shell"
       style={{ maxWidth: "1100px", paddingTop: "1.5rem" }}
     >
-      <section className="glass-panel" style={{ padding: "1.25rem", marginBottom: "1rem" }}>
+      <section
+        className="glass-panel"
+        style={{
+          padding: "1.25rem",
+          marginBottom: "1rem",
+          border: "1px solid rgba(96,165,250,0.42)",
+          boxShadow:
+            "0 0 0 1px rgba(125,211,252,0.07), 0 0 24px rgba(56,189,248,0.14), 0 20px 48px rgba(2,6,23,0.2)",
+          background:
+            "linear-gradient(180deg, rgba(9,18,33,0.98), rgba(6,12,23,0.96)), radial-gradient(circle at top left, rgba(56,189,248,0.12), transparent 62%)",
+        }}
+      >
         <div
           style={{
             display: "grid",
@@ -651,8 +664,8 @@ export default function StatsPage() {
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "96px minmax(0, 1fr)",
-              gap: "0.9rem",
+              gridTemplateColumns: "96px minmax(140px, 1fr)",
+              gap: "1.5rem",
               alignItems: "center",
               justifyContent: "center",
               width: "fit-content",
@@ -667,7 +680,8 @@ export default function StatsPage() {
                 height: "96px",
                 borderRadius: "50%",
                 objectFit: "cover",
-                border: "3px solid var(--accent-light)",
+                border: "2px solid rgba(125,211,252,0.85)",
+                boxShadow: "0 0 0 5px rgba(56,189,248,0.08), 0 0 22px rgba(56,189,248,0.16)",
               }}
             />
 
@@ -675,15 +689,17 @@ export default function StatsPage() {
               style={{
                 minWidth: 0,
                 paddingTop: "0.15rem",
-                textAlign: "center",
+                textAlign: "right",
                 display: "grid",
-                justifyItems: "center",
+                justifyItems: "end",
               }}
             >
               <div style={{ color: "var(--accent-light)", marginBottom: "0.15rem" }}>
                 {selectedTeam.name}
               </div>
-              <div style={{ color: "var(--text-muted)" }}>{selectedTeam.name}</div>
+              <div style={{ color: "var(--text-muted)" }}>
+                {leagueName ?? "League"}
+              </div>
               <div style={{ color: "var(--text-muted)", marginTop: "0.15rem" }}>
                 {formatSeasonLabel(season)}
               </div>
@@ -1012,12 +1028,14 @@ function StatsTable({
                 alignItems: "center",
                 cursor: "pointer",
                 background: isCurrent
-                  ? "linear-gradient(90deg, rgba(96,165,250,0.18), rgba(37,99,235,0.08))"
+                  ? "linear-gradient(90deg, rgba(13,24,42,0.96), rgba(10,20,35,0.98))"
                   : "transparent",
                 borderBottom: "1px solid rgba(31,41,55,0.9)",
-                borderLeft: isCurrent
-                  ? "3px solid rgba(125,211,252,0.85)"
-                  : "3px solid transparent",
+                borderLeft: "3px solid transparent",
+                boxShadow: isCurrent
+                  ? "inset 0 0 0 1px rgba(96,165,250,0.5), inset 0 0 18px rgba(56,189,248,0.1)"
+                  : "none",
+                borderRadius: isCurrent ? "10px" : 0,
                 fontWeight: isCurrent ? 700 : 400,
                 textAlign: "center",
                 fontSize: "0.88rem",

@@ -587,9 +587,11 @@ function benchToggleButtonStyle(
 const mainGameCardStyle: CSSProperties = {
   padding: "1.25rem",
   marginBottom: "1rem",
-  border: "1px solid rgba(249,115,22,0.24)",
-  background: "linear-gradient(180deg, rgba(9,18,33,0.98), rgba(5,11,20,0.98))",
-  boxShadow: "0 26px 60px rgba(0,0,0,0.34)",
+  border: "1px solid rgba(96,165,250,0.44)",
+  background:
+    "linear-gradient(180deg, rgba(9,18,33,0.98), rgba(5,11,20,0.98)), radial-gradient(circle at top, rgba(56,189,248,0.12), transparent 60%)",
+  boxShadow:
+    "0 0 0 1px rgba(125,211,252,0.08), 0 0 22px rgba(56,189,248,0.14), 0 26px 60px rgba(0,0,0,0.34)",
   color: "var(--text)",
   cursor: "pointer",
 };
