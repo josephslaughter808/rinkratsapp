@@ -112,9 +112,9 @@ export default function PlayersTab({
         <div style={headerRowStyle}>
           <div style={avatarHeaderStyle} />
           <div style={playerHeaderStyle}>PLAYER</div>
-          <div style={numberHeaderStyle}>LVL</div>
+          <div style={centeredStatHeaderStyle}>LVL</div>
           <div style={numberHeaderStyle}>PTS</div>
-          <div style={handHeaderStyle}>HAND</div>
+          <div style={centeredStatHeaderStyle}>HAND</div>
           <div style={numberHeaderStyle}>+/-</div>
           <div style={queueHeaderStyle} />
         </div>
@@ -252,7 +252,7 @@ const headerRowStyle: React.CSSProperties = {
   display: "grid",
   gridTemplateColumns: "34px minmax(0, 1.22fr) 32px 40px 40px 48px 72px",
   alignItems: "center",
-  gap: "0.1875rem",
+  gap: "0.125rem",
   padding: "0.45rem 0.35rem 0.35rem",
   color: "rgba(255,255,255,0.65)",
   fontSize: "0.66rem",
@@ -272,7 +272,7 @@ const numberHeaderStyle: React.CSSProperties = {
   textAlign: "right",
 };
 
-const handHeaderStyle: React.CSSProperties = {
+const centeredStatHeaderStyle: React.CSSProperties = {
   textAlign: "center",
 };
 
@@ -284,7 +284,7 @@ const playerRowStyle: React.CSSProperties = {
   display: "grid",
   gridTemplateColumns: "34px minmax(0, 1.22fr) 32px 40px 40px 48px 72px",
   alignItems: "center",
-  gap: "0.1875rem",
+  gap: "0.125rem",
   minHeight: "50px",
   padding: "0.38rem 0.35rem",
   borderTop: "1px solid rgba(148,163,184,0.08)",
@@ -332,7 +332,7 @@ const numberCellStyle: React.CSSProperties = {
   color: "rgba(255,255,255,0.78)",
   fontSize: "0.8rem",
   fontWeight: 600,
-  paddingRight: "0.02rem",
+  paddingRight: "0",
 };
 
 const queueCellStyle: React.CSSProperties = {
