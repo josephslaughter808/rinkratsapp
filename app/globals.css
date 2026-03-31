@@ -19,7 +19,7 @@
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --safe-left: env(safe-area-inset-left, 0px);
   --app-topbar-height: calc(var(--safe-top) + 84px);
-  --app-bottomnav-height: calc(var(--safe-bottom) + 74px);
+  --app-bottomnav-height: calc(var(--safe-bottom) + 92px);
 }
 
 /* ================================
@@ -129,14 +129,16 @@ button:disabled {
 
 .nav-item {
   opacity: 0.82;
-  font-size: 0.74rem;
+  font-size: 0.68rem;
   font-weight: 600;
   letter-spacing: 0.01em;
+  transition: color 160ms ease, opacity 160ms ease, transform 160ms ease;
 }
 
 .nav-item.active {
   opacity: 1;
-  color: var(--accent);
+  color: #93c5fd;
+  transform: translateY(-1px);
 }
 
 .page-shell {

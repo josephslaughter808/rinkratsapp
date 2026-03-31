@@ -65,18 +65,23 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <nav
             style={{
               position: "fixed",
-              bottom: 0,
-              left: 0,
-              width: "100%",
-              background: "var(--surface)",
-              borderTop: "1px solid #1f2937",
+              bottom: "calc(0.45rem + var(--safe-bottom))",
+              left: "50%",
+              transform: "translateX(-50%)",
+              width: "min(94vw, 430px)",
+              background:
+                "linear-gradient(180deg, rgba(7,17,31,0.96), rgba(5,11,20,0.94))",
+              border: "1px solid rgba(96, 165, 250, 0.42)",
               display: "flex",
               justifyContent: "space-around",
-              padding:
-                "0.7rem calc(0.2rem + var(--safe-right)) calc(0.7rem + var(--safe-bottom)) calc(0.2rem + var(--safe-left))",
+              alignItems: "center",
+              padding: "0.7rem 0.55rem 0.75rem",
               zIndex: 100,
-              backdropFilter: "blur(18px)",
-              minHeight: "var(--app-bottomnav-height)",
+              backdropFilter: "blur(22px)",
+              minHeight: "70px",
+              borderRadius: "999px",
+              boxShadow:
+                "0 0 0 1px rgba(191,219,254,0.08), 0 0 22px rgba(59,130,246,0.24), 0 18px 40px rgba(2,6,23,0.42)",
             }}
           >
             {navItems.map(({ href, label, icon: Icon }) => {
@@ -92,21 +97,22 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     flexDirection: "column",
                     alignItems: "center",
                     justifyContent: "center",
-                    gap: "0.24rem",
-                    minWidth: 44,
+                    gap: "0.26rem",
+                    minWidth: 42,
                     textDecoration: "none",
-                    fontSize: "0.74rem",
+                    fontSize: "0.68rem",
                     lineHeight: 1,
                     color: active ? "var(--text)" : "var(--text-muted)",
+                    flex: 1,
                   }}
                 >
                   <Icon
                     style={{
-                      color: active ? "var(--text)" : "var(--text-muted)",
+                      color: active ? "#93c5fd" : "rgba(226,232,240,0.62)",
                       width: 22,
                       height: 22,
                       filter: active
-                        ? "drop-shadow(0 0 8px rgba(253,186,116,0.38))"
+                        ? "drop-shadow(0 0 8px rgba(96,165,250,0.55))"
                         : "none",
                     }}
                   />
