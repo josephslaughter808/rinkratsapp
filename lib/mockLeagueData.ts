@@ -14,6 +14,7 @@ export type Team = {
   record: string;
   captain: string;
   assistant: string;
+  logoUrl?: string | null;
 };
 
 export type Highlight = {
@@ -88,11 +89,13 @@ export type DraftPlayer = {
   number: number;
   position: "C" | "LW" | "RW" | "D" | "G";
   shoots: "L" | "R";
-  tier: "A" | "B" | "C";
+  tier: "R" | "D" | "C" | "B" | "A" | "E";
   previousTeam: string;
   lastSeasonPoints: number;
   plusMinus: number;
   note: string;
+  profileUrl?: string | null;
+  draftPoolEntryId?: string | null;
 };
 
 export type DraftPick = {

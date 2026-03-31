@@ -147,7 +147,10 @@ export default function PlayersTab({
               <div style={playerRowStyle}>
                 <div style={avatarCellStyle}>
                   <img
-                    src={`https://api.dicebear.com/9.x/adventurer-neutral/svg?seed=${encodeURIComponent(player.name)}`}
+                    src={
+                      player.profileUrl ||
+                      `https://api.dicebear.com/9.x/adventurer-neutral/svg?seed=${encodeURIComponent(player.name)}`
+                    }
                     alt={player.name}
                     style={avatarStyle}
                   />
@@ -190,17 +193,17 @@ function PositionBadge({ position }: { position: string }) {
 }
 
 function formatLevel(level: DraftPlayer["tier"]) {
-  if (level === "A") return "A";
-  if (level === "B") return "B";
-  if (level === "C") return "C";
   return level;
 }
 
 function levelSortValue(level: DraftPlayer["tier"]) {
   const order: Record<DraftPlayer["tier"], number> = {
-    C: 2,
-    B: 3,
-    A: 4,
+    R: 1,
+    D: 2,
+    C: 3,
+    B: 4,
+    A: 5,
+    E: 6,
   };
 
   return order[level];

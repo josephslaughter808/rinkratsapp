@@ -40,7 +40,10 @@ export default function QueueTab({
             <div key={player.id} style={playerRowStyle}>
               <div style={avatarCellStyle}>
                 <img
-                  src={`https://api.dicebear.com/9.x/adventurer-neutral/svg?seed=${encodeURIComponent(player.name)}`}
+                  src={
+                    player.profileUrl ||
+                    `https://api.dicebear.com/9.x/adventurer-neutral/svg?seed=${encodeURIComponent(player.name)}`
+                  }
                   alt={player.name}
                   style={avatarStyle}
                 />
@@ -84,9 +87,6 @@ function PositionBadge({ position }: { position: string }) {
 }
 
 function formatLevel(level: DraftPlayer["tier"]) {
-  if (level === "A") return "A";
-  if (level === "B") return "B";
-  if (level === "C") return "C";
   return level;
 }
 

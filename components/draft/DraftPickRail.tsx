@@ -7,6 +7,7 @@ interface Team {
   name: string;
   shortName?: string;
   accent?: string;
+  logoUrl?: string | null;
 }
 
 interface Pick {
@@ -16,6 +17,7 @@ interface Pick {
   teamId: string;
   player_name: string | null;
   player_position?: string | null;
+  player_profile_url?: string | null;
 }
 
 interface Props {
@@ -119,9 +121,12 @@ export default function DraftPickRail({
               {hasPlayer ? (
                 <>
                   <img
-                    src={`https://api.dicebear.com/9.x/adventurer-neutral/svg?seed=${encodeURIComponent(
-                      pick.player_name || "Player"
-                    )}`}
+                    src={
+                      pick.player_profile_url ||
+                      `https://api.dicebear.com/9.x/adventurer-neutral/svg?seed=${encodeURIComponent(
+                        pick.player_name || "Player"
+                      )}`
+                    }
                     alt={pick.player_name || "Player"}
                     style={playerPhotoStyle}
                   />
