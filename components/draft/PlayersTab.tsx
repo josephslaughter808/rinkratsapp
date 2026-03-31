@@ -198,12 +198,9 @@ function formatLevel(level: DraftPlayer["tier"]) {
 
 function levelSortValue(level: DraftPlayer["tier"]) {
   const order: Record<DraftPlayer["tier"], number> = {
-    R: 0,
-    D: 1,
     C: 2,
     B: 3,
     A: 4,
-    E: 5,
   };
 
   return order[level];

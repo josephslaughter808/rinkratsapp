@@ -97,7 +97,9 @@ export default function DraftRoomPage() {
             onToggleQueue={handleToggleQueue}
           />
         )}
-        {activeTab === "queue" && <QueueTab players={queuePlayers} />}
+        {activeTab === "queue" && (
+          <QueueTab players={queuePlayers} onToggleQueue={handleToggleQueue} />
+        )}
         {activeTab === "board" && (
           <BoardTab picks={draftPicks} teams={teams} players={draftPlayers} />
         )}
