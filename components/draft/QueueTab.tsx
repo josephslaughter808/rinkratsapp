@@ -11,76 +11,74 @@ export default function QueueTab({
 }) {
   return (
     <div style={{ display: "grid", gap: "0.75rem" }}>
-      <div style={stickyHeaderStyle}>
-        <div style={queueHeaderWrapStyle}>
-          <div>
-            <div style={queueEyebrowStyle}>Draft Queue</div>
-            <h2 style={queueTitleStyle}>Queued targets</h2>
-          </div>
-          <div style={queueCountStyle}>{players.length}</div>
-        </div>
-
+      <div style={stickyControlsStyle}>
         <div style={headerRowStyle}>
-          <div style={orderHeaderStyle}>#</div>
           <div style={avatarHeaderStyle} />
           <div style={playerHeaderStyle}>PLAYER</div>
           <div style={statHeaderStyle}>LVL</div>
           <div style={statHeaderStyle}>PTS</div>
           <div style={statHeaderStyle}>HAND</div>
           <div style={statHeaderStyle}>+/-</div>
-          <div style={queueHeaderActionStyle} />
+          <div style={queueHeaderStyle} />
         </div>
       </div>
 
-      {players.length === 0 ? (
-        <div style={emptyStateStyle}>
-          <div style={{ fontSize: "1rem", fontWeight: 700 }}>Queue is empty</div>
-          <div style={{ color: "var(--text-muted)", marginTop: "0.3rem", fontSize: "0.84rem" }}>
-            Add players from the board and they will appear here in draft order.
+      <div style={tableShellStyle}>
+        {players.length === 0 ? (
+          <div style={emptyStateStyle}>
+            <div style={{ fontSize: "0.92rem", fontWeight: 700 }}>Queue is empty</div>
+            <div style={{ color: "var(--text-muted)", marginTop: "0.3rem", fontSize: "0.8rem" }}>
+              Add players from the Players tab and they will show up here.
+            </div>
           </div>
-        </div>
-      ) : (
-        <div style={{ display: "grid", gap: "0.4rem" }}>
-          {players.map((player, index) => (
-            <div key={player.id} style={{ display: "grid", gap: "0.35rem" }}>
-              <div style={queueRowStyle}>
-                <div style={queueOrderCellStyle(index === 0)}>{index + 1}</div>
-
+        ) : (
+          players.map((player) => (
+            <div key={player.id} style={playerRowStyle}>
+              <div style={avatarCellStyle}>
                 <img
                   src={`https://api.dicebear.com/9.x/adventurer-neutral/svg?seed=${encodeURIComponent(player.name)}`}
                   alt={player.name}
                   style={avatarStyle}
                 />
+              </div>
 
-                <div style={playerCellStyle}>
-                  <div style={playerNameStyle}>{player.name}</div>
-                  <div style={playerSublineStyle}>
-                    <span>#{player.number}</span>
-                    <PositionBadge position={player.position} />
-                  </div>
+              <div style={playerCellStyle}>
+                <div style={playerNameStyle}>{player.name}</div>
+                <div style={playerSublineStyle}>
+                  <span>#{player.number}</span>
+                  <PositionBadge position={player.position} />
                 </div>
+              </div>
 
-                <div style={statCellStyle}>{player.tier}</div>
-                <div style={statCellStyle}>{player.lastSeasonPoints}</div>
-                <div style={statCellStyle}>{player.shoots}</div>
-                <div style={statCellStyle}>
-                  {player.plusMinus > 0 ? `+${player.plusMinus}` : player.plusMinus}
-                </div>
+              <div style={statValueCellStyle}>{formatLevel(player.tier)}</div>
+              <div style={statValueCellStyle}>{player.lastSeasonPoints}</div>
+              <div style={statValueCellStyle}>{player.shoots}</div>
+              <div style={statValueCellStyle}>
+                {player.plusMinus > 0 ? `+${player.plusMinus}` : player.plusMinus}
+              </div>
 
+              <div style={queueCellStyle}>
                 <button onClick={() => onToggleQueue(player.id)} style={queueButtonStyle}>
                   Queue
                 </button>
               </div>
             </div>
-          ))}
-        </div>
-      )}
+          ))
+        )}
+      </div>
     </div>
   );
 }
 
 function PositionBadge({ position }: { position: string }) {
   return <span style={positionBadgeStyle(position)}>{position}</span>;
+}
+
+function formatLevel(level: DraftPlayer["tier"]) {
+  if (level === "A") return "A";
+  if (level === "B") return "B";
+  if (level === "C") return "C";
+  return level;
 }
 
 function positionBadgeStyle(position: string): React.CSSProperties {
@@ -109,14 +107,7 @@ function getPositionBadgeColor(position: string) {
   return "#cbd5e1";
 }
 
-const queueHeaderWrapStyle: React.CSSProperties = {
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "space-between",
-  gap: "0.75rem",
-};
-
-const stickyHeaderStyle: React.CSSProperties = {
+const stickyControlsStyle: React.CSSProperties = {
   position: "sticky",
   top: 0,
   zIndex: 30,
@@ -127,29 +118,10 @@ const stickyHeaderStyle: React.CSSProperties = {
     "linear-gradient(180deg, rgba(5,11,20,0.98) 0%, rgba(5,11,20,0.96) 78%, rgba(5,11,20,0) 100%)",
 };
 
-const queueEyebrowStyle: React.CSSProperties = {
-  color: "var(--accent-light)",
-  fontSize: "0.72rem",
-  textTransform: "uppercase",
-  letterSpacing: "0.08em",
-};
-
-const queueTitleStyle: React.CSSProperties = {
-  fontSize: "1.2rem",
-  marginTop: "0.2rem",
-};
-
-const queueCountStyle: React.CSSProperties = {
-  minWidth: "36px",
-  height: "36px",
-  borderRadius: "999px",
-  display: "inline-flex",
-  alignItems: "center",
-  justifyContent: "center",
-  background: "rgba(59,130,246,0.18)",
-  border: "1px solid rgba(96,165,250,0.28)",
-  color: "#93c5fd",
-  fontWeight: 700,
+const tableShellStyle: React.CSSProperties = {
+  display: "grid",
+  gap: "0.15rem",
+  borderTop: "1px solid rgba(148,163,184,0.14)",
 };
 
 const emptyStateStyle: React.CSSProperties = {
@@ -161,7 +133,7 @@ const emptyStateStyle: React.CSSProperties = {
 
 const headerRowStyle: React.CSSProperties = {
   display: "grid",
-  gridTemplateColumns: "28px 34px minmax(0, 1.18fr) 30px 34px 36px 42px 68px",
+  gridTemplateColumns: "34px minmax(0, 1.18fr) 30px 34px 36px 42px 68px",
   alignItems: "center",
   gap: "0.125rem",
   padding: "0.45rem 0.35rem 0.35rem",
@@ -169,10 +141,6 @@ const headerRowStyle: React.CSSProperties = {
   fontSize: "0.66rem",
   fontWeight: 700,
   letterSpacing: "0.06em",
-};
-
-const orderHeaderStyle: React.CSSProperties = {
-  textAlign: "center",
 };
 
 const avatarHeaderStyle: React.CSSProperties = {
@@ -187,13 +155,13 @@ const statHeaderStyle: React.CSSProperties = {
   textAlign: "center",
 };
 
-const queueHeaderActionStyle: React.CSSProperties = {
+const queueHeaderStyle: React.CSSProperties = {
   textAlign: "right",
 };
 
-const queueRowStyle: React.CSSProperties = {
+const playerRowStyle: React.CSSProperties = {
   display: "grid",
-  gridTemplateColumns: "28px 34px minmax(0, 1.18fr) 30px 34px 36px 42px 68px",
+  gridTemplateColumns: "34px minmax(0, 1.18fr) 30px 34px 36px 42px 68px",
   alignItems: "center",
   gap: "0.125rem",
   minHeight: "50px",
@@ -202,20 +170,11 @@ const queueRowStyle: React.CSSProperties = {
   background: "rgba(255,255,255,0.02)",
 };
 
-function queueOrderCellStyle(isTop: boolean): React.CSSProperties {
-  return {
-    width: "22px",
-    height: "22px",
-    borderRadius: "999px",
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    background: isTop ? "rgba(249,115,22,0.2)" : "rgba(255,255,255,0.08)",
-    color: isTop ? "#fdba74" : "rgba(255,255,255,0.78)",
-    fontSize: "0.72rem",
-    fontWeight: 700,
-  };
-}
+const avatarCellStyle: React.CSSProperties = {
+  textAlign: "center",
+  display: "flex",
+  justifyContent: "center",
+};
 
 const avatarStyle: React.CSSProperties = {
   width: "28px",
@@ -247,11 +206,16 @@ const playerSublineStyle: React.CSSProperties = {
   fontSize: "0.72rem",
 };
 
-const statCellStyle: React.CSSProperties = {
+const statValueCellStyle: React.CSSProperties = {
   textAlign: "center",
   color: "rgba(255,255,255,0.8)",
   fontSize: "0.8rem",
   fontWeight: 600,
+};
+
+const queueCellStyle: React.CSSProperties = {
+  display: "flex",
+  justifyContent: "flex-end",
 };
 
 const queueButtonStyle: React.CSSProperties = {
