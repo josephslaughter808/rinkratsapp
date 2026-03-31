@@ -307,6 +307,7 @@ export default function StatsPage() {
 
   const [loading, setLoading] = useState(true);
   const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [playerName, setPlayerName] = useState<string | null>(null);
   const [playerProfile, setPlayerProfile] = useState<ProfileSummary>({
     number: null,
     position: null,
@@ -398,6 +399,7 @@ export default function StatsPage() {
         position: playerInfo?.position ?? null,
         profile_pic_url: sharedProfileRow?.profile_pic_url ?? playerInfo?.profile_pic_url ?? null,
       });
+      setPlayerName(playerInfo?.name ?? null);
 
       const { data: personal } = await supabase
         .from("season_stats")
@@ -689,9 +691,9 @@ export default function StatsPage() {
               style={{
                 minWidth: 0,
                 paddingTop: "0.15rem",
-                textAlign: "right",
+                textAlign: "center",
                 display: "grid",
-                justifyItems: "end",
+                justifyItems: "center",
               }}
             >
               <div style={{ color: "var(--accent-light)", marginBottom: "0.15rem" }}>
@@ -708,7 +710,7 @@ export default function StatsPage() {
 
           <div style={{ textAlign: "center" }}>
             <h1 style={{ fontSize: "1.85rem", lineHeight: 1.05 }}>
-              {userEmail?.split("@")[0]}
+              {playerName ?? userEmail?.split("@")[0]}
             </h1>
             <div
               style={{

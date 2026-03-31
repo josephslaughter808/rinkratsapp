@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState, type CSSProperties } from "react";
-import { useParams } from "next/navigation";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
+import { useTeam } from "@/context/TeamContext";
 
 type GameRow = {
   id: string;
@@ -23,46 +24,43 @@ type TeamRow = {
   logo_url: string | null;
 };
 
-type ClipRow = {
+type RosterPlayer = {
   id: string;
-  description: string | null;
-  url: string;
-  timestamp_seconds: number | null;
-  player_id: string | null;
-  players?: Array<{
-    name: string | null;
-  }> | null;
+  name: string | null;
+  number: number | null;
+  position: string | null;
+  profile_pic_url: string | null;
 };
 
-type RichClipRow = {
+type AvailabilityStatus = "in" | "out" | "unknown";
+
+type AvailabilityEntry = {
+  player: RosterPlayer;
+  status: AvailabilityStatus;
+};
+
+type PreviousMatchup = {
   id: string;
-  title: string;
-  description: string | null;
-  clip_type: string;
-  start_seconds: number;
-  end_seconds: number;
-  published: boolean;
-  created_at: string;
-  game_clip_players?: Array<{
-    player_id: string;
-    involvement_role: string;
-    players?: Array<{ name: string | null }> | null;
-  }> | null;
+  date: string;
+  home_score: number | null;
+  away_score: number | null;
 };
 
 export default function GameDetailsPage() {
   const params = useParams<{ gameId: string }>();
+  const router = useRouter();
+  const { selectedTeam } = useTeam();
   const gameId = params?.gameId;
+
   const [loading, setLoading] = useState(true);
   const [game, setGame] = useState<GameRow | null>(null);
   const [teamsById, setTeamsById] = useState<Record<string, TeamRow>>({});
-  const [clips, setClips] = useState<ClipRow[]>([]);
-  const [richClips, setRichClips] = useState<RichClipRow[]>([]);
+  const [roster, setRoster] = useState<RosterPlayer[]>([]);
+  const [previousMatchups, setPreviousMatchups] = useState<PreviousMatchup[]>([]);
+  const [myStatus, setMyStatus] = useState<AvailabilityStatus>("in");
 
   useEffect(() => {
-    if (!gameId) {
-      return;
-    }
+    if (!gameId) return;
 
     let active = true;
 
@@ -75,9 +73,7 @@ export default function GameDetailsPage() {
         .eq("id", gameId)
         .maybeSingle();
 
-      if (!active) {
-        return;
-      }
+      if (!active) return;
 
       setGame((gameRow as GameRow | null) ?? null);
 
@@ -88,30 +84,25 @@ export default function GameDetailsPage() {
 
       const teamIds = [gameRow.home_team_id, gameRow.away_team_id].filter(Boolean) as string[];
 
-      const [{ data: teamRows }, { data: clipRows }, richClipsResult] = await Promise.all([
+      const [{ data: teamRows }, previousResult] = await Promise.all([
         supabase.from("teams").select("id, name, logo_url").in("id", teamIds),
         supabase
-          .from("video_clips")
-          .select("id, description, url, timestamp_seconds, player_id, players(name)")
-          .eq("game_id", gameRow.id),
-        supabase
-          .from("game_clips")
-          .select(
-            "id, title, description, clip_type, start_seconds, end_seconds, published, created_at, game_clip_players(player_id, involvement_role, players(name))"
-          )
-          .eq("game_id", gameRow.id)
-          .order("created_at", { ascending: false }),
+          .from("games_v2")
+          .select("id, date, home_score, away_score")
+          .eq("home_team_id", gameRow.home_team_id)
+          .eq("away_team_id", gameRow.away_team_id)
+          .not("home_score", "is", null)
+          .not("away_score", "is", null)
+          .order("date", { ascending: false })
+          .limit(4),
       ]);
 
-      if (!active) {
-        return;
-      }
+      if (!active) return;
 
       setTeamsById(
         Object.fromEntries(((teamRows ?? []) as TeamRow[]).map((team) => [team.id, team]))
       );
-      setClips((clipRows ?? []) as unknown as ClipRow[]);
-      setRichClips(richClipsResult.error ? [] : ((richClipsResult.data ?? []) as unknown as RichClipRow[]));
+      setPreviousMatchups((previousResult.data ?? []) as PreviousMatchup[]);
       setLoading(false);
     }
 
@@ -121,6 +112,81 @@ export default function GameDetailsPage() {
       active = false;
     };
   }, [gameId]);
+
+  useEffect(() => {
+    const teamId = selectedTeam?.id;
+
+    if (!teamId) {
+      return;
+    }
+
+    let active = true;
+
+    async function loadRoster() {
+      const { data } = await supabase
+        .from("player_teams")
+        .select("player_id, players(id, name, number, position, profile_pic_url)")
+        .eq("team_id", teamId);
+
+      if (!active) return;
+
+      const nextRoster = ((data ?? []) as Array<{
+        player_id: string | null;
+        players:
+          | {
+              id: string;
+              name: string | null;
+              number: number | null;
+              position: string | null;
+              profile_pic_url: string | null;
+            }
+          | {
+              id: string;
+              name: string | null;
+              number: number | null;
+              position: string | null;
+              profile_pic_url: string | null;
+            }[]
+          | null;
+      }>)
+        .map((row) => (Array.isArray(row.players) ? row.players[0] : row.players))
+        .filter((player): player is RosterPlayer => Boolean(player?.id))
+        .sort((a, b) => (a.name ?? "").localeCompare(b.name ?? ""));
+
+      setRoster(nextRoster);
+    }
+
+    loadRoster();
+
+    return () => {
+      active = false;
+    };
+  }, [selectedTeam?.id]);
+
+  const homeTeam = teamsById[game?.home_team_id ?? ""];
+  const awayTeam = teamsById[game?.away_team_id ?? ""];
+  const isFinal = Boolean(game && game.home_score !== null && game.away_score !== null);
+
+  const availability = useMemo(() => {
+    const generated = roster.map((player, index) => {
+      const defaultStatus: AvailabilityStatus =
+        index < Math.max(0, roster.length - 2) ? "in" : index === roster.length - 2 ? "out" : "unknown";
+
+      const status =
+        player.id === selectedTeam?.player_id ? myStatus : defaultStatus;
+
+      return {
+        player,
+        status,
+      } satisfies AvailabilityEntry;
+    });
+
+    return {
+      attending: generated.filter((entry) => entry.status === "in"),
+      notAttending: generated.filter((entry) => entry.status === "out"),
+      awaiting: generated.filter((entry) => entry.status === "unknown"),
+    };
+  }, [myStatus, roster, selectedTeam?.player_id]);
 
   if (loading) {
     return (
@@ -132,150 +198,265 @@ export default function GameDetailsPage() {
 
   if (!game) {
     return (
-      <main className="page-shell" style={{ paddingTop: "1.5rem" }}>
-        <div className="glass-panel" style={{ padding: "1.5rem" }}>
-          <Link href="/dashboard" style={{ display: "inline-block", marginBottom: "1rem" }}>
-            Back to dashboard
+      <main className="page-shell" style={{ paddingTop: "1rem" }}>
+        <section className="glass-panel" style={{ padding: "1.25rem" }}>
+          <Link href="/dashboard" style={{ color: "#93c5fd" }}>
+            Back
           </Link>
-          <h1 style={{ fontSize: "1.8rem", marginBottom: "0.5rem" }}>Game not found</h1>
-          <p style={{ color: "var(--text-muted)" }}>
-            This game could not be loaded from the league schedule.
-          </p>
-        </div>
+          <h1 style={{ fontSize: "1.7rem", marginTop: "0.75rem" }}>Game not found</h1>
+        </section>
       </main>
     );
   }
 
-  const homeTeam = teamsById[game.home_team_id ?? ""];
-  const awayTeam = teamsById[game.away_team_id ?? ""];
-  const isFinal = game.home_score !== null && game.away_score !== null;
+  const counts = {
+    in: availability.attending.length,
+    out: availability.notAttending.length,
+    unknown: availability.awaiting.length,
+  };
+
+  const currentPlayer = roster.find((player) => player.id === selectedTeam?.player_id);
+  const linePreview = selectedTeam
+    ? buildLinePreview(currentPlayer?.position ?? null, selectedTeam.player_id)
+    : "Line placement pending";
 
   return (
-    <main className="page-shell" style={{ paddingTop: "1.5rem" }}>
-      <div className="glass-panel" style={{ padding: "1.5rem", marginBottom: "1rem" }}>
-        <Link href="/dashboard" style={{ display: "inline-block", marginBottom: "1rem" }}>
-          Back to dashboard
-        </Link>
-
-        <div style={{ display: "flex", justifyContent: "space-between", gap: "1rem", flexWrap: "wrap" }}>
-          <div>
-            <p style={{ color: "var(--text-muted)", marginBottom: "0.35rem" }}>
-              {formatGameDate(game.date)} • {formatGameTime(game.date)} • {resolveRinkLabel(homeTeam, awayTeam)}
-            </p>
-            <h1 style={{ fontSize: "2.05rem", marginBottom: "0.35rem" }}>
-              {awayTeam?.name ?? "Away"} at {homeTeam?.name ?? "Home"}
-            </h1>
-            <p style={{ color: "var(--text-muted)", maxWidth: "720px" }}>
-              {isFinal
-                ? "Final score and tagged highlights for this league game."
-                : "Game details are live. Highlights and film links can be added after the game."}
-            </p>
-          </div>
-
-          <div style={detailSummaryStyle}>
-            <div style={{ fontSize: "0.85rem", color: "var(--text-muted)", marginBottom: "0.4rem" }}>
-              Game State
-            </div>
-            <div style={{ fontSize: "1.45rem", fontWeight: 700 }}>
-              {isFinal
-                ? `${game.away_score} - ${game.home_score} final`
-                : `${formatGameDate(game.date)} at ${formatGameTime(game.date)}`}
-            </div>
-            <div style={{ marginTop: "0.5rem", fontSize: "0.95rem", color: "var(--accent-light)" }}>
-              {game.is_playoff ? "Playoff game" : "Regular season"}
-            </div>
+    <main className="page-shell" style={{ maxWidth: "760px", paddingTop: "1rem", paddingBottom: "10rem" }}>
+      <div style={gameHeaderStyle}>
+        <button onClick={() => router.push("/dashboard")} style={backButtonStyle}>
+          Back
+        </button>
+        <div style={{ textAlign: "center" }}>
+          <h1 style={{ fontSize: "1.25rem", marginBottom: "0.18rem" }}>Game</h1>
+          <div style={{ color: "var(--text-muted)", fontSize: "0.88rem" }}>
+            {formatGameDate(game.date)} at {formatGameTime(game.date)}
           </div>
         </div>
+        <div style={{ width: 44 }} />
       </div>
 
-      <div className="glass-panel" style={{ padding: "1.5rem" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", gap: "1rem", flexWrap: "wrap", marginBottom: "1rem" }}>
-          <div>
-            <h2 style={{ fontSize: "1.8rem" }}>Highlights</h2>
-            <p style={{ color: "var(--text-muted)", marginTop: "0.25rem" }}>
-              Captains can tag clips from uploaded film once they are available.
-            </p>
-          </div>
-          <div style={detailBadgeStyle}>
-            {clips.length} clip{clips.length === 1 ? "" : "s"} mapped
-          </div>
+      {!isFinal ? (
+        <section style={quickActionRowStyle}>
+          <button style={quickActionCardStyle}>
+            <span style={quickActionIconStyle}>≡</span>
+            <span>lines</span>
+          </button>
+          <button
+            style={quickActionCardStyle}
+            onClick={() => router.push("/dashboard/chat")}
+          >
+            <span style={quickActionIconStyle}>✉</span>
+            <span>message</span>
+          </button>
+        </section>
+      ) : null}
+
+      <section className="glass-panel" style={gameSummaryCardStyle}>
+        <div style={summaryTeamsStyle}>
+          <SummaryTeam team={awayTeam} label="Away" />
+          <SummaryTeam team={homeTeam} label="Home" />
         </div>
 
-        {clips.length ? (
-          <div style={{ display: "grid", gap: "1rem" }}>
-            {(richClips.length
-              ? richClips.map((clip) => ({
-                  id: clip.id,
-                  title: clip.title,
-                  description: clip.description,
-                  displayType: clip.clip_type,
-                  clipLabel: formatRange(clip.start_seconds, clip.end_seconds),
-                  playerName:
-                    clip.game_clip_players?.[0]?.players?.[0]?.name || "Unassigned",
-                  playerLine: formatClipPlayerLine(clip.game_clip_players ?? []),
-                  url: "",
-                }))
-              : clips.map((clip) => ({
-                  id: clip.id,
-                  title: clip.description || "Tagged clip",
-                  description: clip.description,
-                  displayType: "clip",
-                  clipLabel:
-                    clip.timestamp_seconds !== null
-                      ? formatTimestamp(clip.timestamp_seconds)
-                      : "Timestamp TBD",
-                  playerName: clip.players?.[0]?.name || "Unassigned",
-                  playerLine: clip.players?.[0]?.name
-                    ? `Tagged player: ${clip.players[0].name}`
-                    : "Tagged player: Unassigned",
-                  url: clip.url,
-                }))
-            ).map((clip) => (
-              <article
-                key={clip.id}
-                style={{
-                  padding: "1.15rem",
-                  borderRadius: "18px",
-                  border: "1px solid var(--line)",
-                  background: "rgba(7, 17, 31, 0.74)",
-                }}
-              >
-                <div style={{ display: "flex", justifyContent: "space-between", gap: "0.75rem", flexWrap: "wrap", marginBottom: "0.65rem" }}>
-                  <div>
-                    <div style={{ color: "var(--accent-light)", fontSize: "0.82rem", textTransform: "uppercase" }}>
-                      {clip.displayType} • {clip.clipLabel}
-                    </div>
-                    <h3 style={{ fontSize: "1.2rem", marginTop: "0.25rem" }}>
-                      {clip.title}
-                    </h3>
-                  </div>
-                  {clip.url ? (
-                    <a href={clip.url} target="_blank" rel="noreferrer" style={clipChipStyle}>
-                      Open clip
-                    </a>
-                  ) : null}
-                </div>
+        {!isFinal ? (
+          <>
+            <div style={summaryCountsStyle}>
+              <SummaryCount label="In" value={counts.in} />
+              <SummaryCount label="Out" value={counts.out} />
+              <SummaryCount label="Unknown" value={counts.unknown} />
+            </div>
 
-                <div style={{ color: "var(--text-muted)" }}>
-                  {clip.playerLine}
-                </div>
-              </article>
-            ))}
-          </div>
+            <div style={summaryMetaTextStyle}>
+              {Math.max(counts.in - 1, 0)} skaters &nbsp; 1 goalie
+            </div>
+
+            <div style={homeLinePreviewStyle}>
+              <span style={linesIconStyle}>≡</span>
+              <span>{linePreview}</span>
+              <span style={linesLinkStyle}>See Lines</span>
+            </div>
+          </>
         ) : (
-          <div
-            style={{
-              padding: "1.2rem",
-              borderRadius: "18px",
-              border: "1px dashed var(--line)",
-              color: "var(--text-muted)",
-            }}
-          >
-            No highlight clips have been added for this game yet.
+          <div style={finalScoreStyle}>
+            {awayTeam?.name ?? "Away"} {game.away_score ?? 0} • {homeTeam?.name ?? "Home"} {game.home_score ?? 0}
           </div>
         )}
-      </div>
+      </section>
+
+      {!isFinal ? (
+        <>
+          <AttendanceCard
+            title="Attending"
+            count={availability.attending.length}
+            entries={availability.attending}
+            tone="in"
+          />
+          <AttendanceCard
+            title="Not Attending"
+            count={availability.notAttending.length}
+            entries={availability.notAttending}
+            tone="out"
+          />
+          <AttendanceCard
+            title="Awaiting Response"
+            count={availability.awaiting.length}
+            entries={availability.awaiting}
+            tone="unknown"
+          />
+
+          <section className="glass-panel" style={{ padding: "1rem", marginTop: "1rem" }}>
+            <div style={{ color: "var(--text-muted)", fontSize: "0.82rem", marginBottom: "0.6rem" }}>
+              Game Setup
+            </div>
+            <div style={setupGridStyle}>
+              <SetupCell label="Max Skaters" value="15" />
+              <SetupCell label="Max Goalie" value="ANY" />
+              <SetupCell label="Duration" value="1 hour" />
+            </div>
+          </section>
+        </>
+      ) : null}
+
+      <section className="glass-panel" style={{ padding: "1rem", marginTop: "1rem" }}>
+        <h2 style={{ fontSize: "1.35rem", marginBottom: "0.8rem" }}>Previous Match-ups</h2>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "0.75rem" }}>
+          {previousMatchups.length ? (
+            previousMatchups
+              .filter((match) => match.id !== game.id)
+              .slice(0, 2)
+              .map((match) => (
+                <article key={match.id} style={matchupHistoryCardStyle}>
+                  <div style={{ color: "var(--text-muted)", fontSize: "0.78rem", marginBottom: "0.45rem" }}>
+                    {formatGameDate(match.date)} at {formatGameTime(match.date)}
+                  </div>
+                  <div style={{ fontWeight: 700 }}>{awayTeam?.name ?? "Away"}</div>
+                  <div style={{ fontWeight: 700 }}>{homeTeam?.name ?? "Home"}</div>
+                  <div style={{ marginTop: "0.45rem", color: "var(--accent-light)", fontWeight: 700 }}>
+                    {match.away_score ?? 0} - {match.home_score ?? 0}
+                  </div>
+                </article>
+              ))
+          ) : (
+            <div style={{ color: "var(--text-muted)", gridColumn: "1 / -1" }}>
+              No previous scorelines have been recorded for this matchup yet.
+            </div>
+          )}
+        </div>
+      </section>
+
+      {!isFinal ? (
+        <div style={availabilityDockStyle}>
+          <div style={availabilityButtonsStyle}>
+            <button
+              style={dockButtonStyle(myStatus === "in", "in")}
+              onClick={() => setMyStatus("in")}
+            >
+              <span>✓ In</span>
+              <span>{counts.in}</span>
+            </button>
+            <button
+              style={dockButtonStyle(myStatus === "out", "out")}
+              onClick={() => setMyStatus("out")}
+            >
+              <span>✕ Out</span>
+              <span>{counts.out}</span>
+            </button>
+          </div>
+          <div style={availabilityExtrasStyle}>
+            <button style={auxButtonStyle}>Add Note</button>
+            <button style={auxButtonStyle}>Request Ride</button>
+          </div>
+        </div>
+      ) : null}
     </main>
+  );
+}
+
+function SummaryTeam({ team, label }: { team?: TeamRow; label: string }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: "0.7rem" }}>
+      {team?.logo_url ? (
+        <img src={team.logo_url} alt={team.name} style={summaryLogoStyle} />
+      ) : (
+        <div style={summaryLogoFallbackStyle}>{buildShortName(team?.name)}</div>
+      )}
+      <div>
+        <div style={{ fontWeight: 700 }}>{team?.name ?? "TBD"}</div>
+        <div style={{ color: "var(--text-muted)", textTransform: "uppercase", fontSize: "0.72rem" }}>
+          {label}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SummaryCount({ label, value }: { label: string; value: number }) {
+  return (
+    <div style={{ flex: 1, minWidth: 0 }}>
+      <div style={{ color: "var(--text-muted)", fontSize: "0.78rem" }}>{label}</div>
+      <div style={{ marginTop: "0.3rem", fontWeight: 800, fontSize: "1.5rem" }}>{value}</div>
+    </div>
+  );
+}
+
+function AttendanceCard({
+  title,
+  count,
+  entries,
+  tone,
+}: {
+  title: string;
+  count: number;
+  entries: AvailabilityEntry[];
+  tone: AvailabilityStatus;
+}) {
+  return (
+    <section className="glass-panel" style={{ padding: "1rem", marginTop: "1rem" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "0.7rem" }}>
+        <h2 style={{ fontSize: "1.3rem" }}>{title}</h2>
+        <div style={{ color: "var(--text-muted)", fontWeight: 700 }}>{count}</div>
+      </div>
+
+      {entries.length ? (
+        <div style={{ display: "grid" }}>
+          {entries.map((entry) => (
+            <div key={entry.player.id} style={attendanceRowStyle}>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.7rem", minWidth: 0 }}>
+                {entry.player.profile_pic_url ? (
+                  <img src={entry.player.profile_pic_url} alt={entry.player.name ?? "Player"} style={attendanceAvatarStyle} />
+                ) : (
+                  <div style={attendanceFallbackStyle}>
+                    {buildShortName(entry.player.name ?? "Player")}
+                  </div>
+                )}
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontWeight: 700 }}>
+                    {entry.player.name ?? "Unknown"} {entry.player.number ? `#${entry.player.number}` : ""}
+                  </div>
+                  <div style={{ color: "var(--text-muted)", fontSize: "0.75rem", textTransform: "uppercase" }}>
+                    Roster
+                  </div>
+                </div>
+              </div>
+
+              <div style={positionBadgeStyle(entry.player.position, tone)}>
+                {entry.player.position === "LW" || entry.player.position === "RW" ? "FWD" : entry.player.position ?? "ANY"}
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div style={{ color: "var(--text-muted)" }}>No players in this group yet.</div>
+      )}
+    </section>
+  );
+}
+
+function SetupCell({ label, value }: { label: string; value: string }) {
+  return (
+    <div style={{ minWidth: 0 }}>
+      <div style={{ color: "var(--text-muted)", fontSize: "0.75rem" }}>{label}</div>
+      <div style={{ marginTop: "0.35rem", fontWeight: 700 }}>{value}</div>
+    </div>
   );
 }
 
@@ -294,79 +475,252 @@ function formatGameTime(value: string) {
   });
 }
 
-function resolveRinkLabel(homeTeam?: TeamRow, awayTeam?: TeamRow) {
-  const names = `${homeTeam?.name ?? ""} ${awayTeam?.name ?? ""}`.toLowerCase();
-
-  if (names.includes("north")) {
-    return "North Rink";
-  }
-
-  if (names.includes("south")) {
-    return "South Rink";
-  }
-
-  return "Main Rink";
+function buildShortName(name?: string) {
+  if (!name) return "TBD";
+  return name
+    .split(" ")
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join("")
+    .slice(0, 3);
 }
 
-function formatTimestamp(seconds: number) {
-  const minutes = Math.floor(seconds / 60);
-  const remainder = seconds % 60;
-  return `${minutes}:${String(remainder).padStart(2, "0")}`;
-}
+function buildLinePreview(position: string | null, playerId: string) {
+  const index = (playerId.charCodeAt(0) % 4) + 1;
 
-function formatRange(start: number, end: number) {
-  return `${formatTimestamp(start)} - ${formatTimestamp(end)}`;
-}
-
-function formatClipPlayerLine(
-  rows: Array<{
-    involvement_role: string;
-    players?: Array<{ name: string | null }> | null;
-  }>
-) {
-  const scorer = rows.find((row) => row.involvement_role === "scorer")?.players?.[0]?.name;
-  const primaryAssist = rows.find(
-    (row) => row.involvement_role === "primary_assist"
-  )?.players?.[0]?.name;
-  const secondaryAssist = rows.find(
-    (row) => row.involvement_role === "secondary_assist"
-  )?.players?.[0]?.name;
-  const featured = rows.find((row) => row.involvement_role === "featured")?.players?.[0]?.name;
-
-  if (scorer) {
-    const assists = [primaryAssist, secondaryAssist].filter(Boolean).join(", ");
-    return assists ? `Scorer: ${scorer} • Assists: ${assists}` : `Scorer: ${scorer}`;
+  if (position === "G") return "Goalie - Starting";
+  if (position === "LD" || position === "RD" || position === "D") {
+    return `Defense - ${ordinal(index)} pair`;
   }
-
-  if (featured) {
-    return `Featured: ${featured}`;
-  }
-
-  return "Tagged player: Unassigned";
+  if (position === "LW" || position === "RW") return `Wing - ${ordinal(index)} line`;
+  return `Center - ${ordinal(index)} line`;
 }
 
-const detailSummaryStyle: CSSProperties = {
-  minWidth: "220px",
-  padding: "1rem 1.1rem",
+function ordinal(value: number) {
+  if (value === 1) return "1st";
+  if (value === 2) return "2nd";
+  if (value === 3) return "3rd";
+  return `${value}th`;
+}
+
+function dockButtonStyle(active: boolean, type: "in" | "out"): CSSProperties {
+  return {
+    flex: 1,
+    minHeight: "56px",
+    borderRadius: "999px",
+    border: "1px solid transparent",
+    background: active
+      ? type === "in"
+        ? "#67d96f"
+        : "#f3f4f6"
+      : type === "in"
+        ? "rgba(103,217,111,0.2)"
+        : "rgba(255,255,255,0.08)",
+    color: active ? (type === "in" ? "#ffffff" : "#111827") : "#f8fafc",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    padding: "0 1.15rem",
+    fontWeight: 800,
+  };
+}
+
+function positionBadgeStyle(position: string | null, tone: AvailabilityStatus): CSSProperties {
+  return {
+    minWidth: "46px",
+    padding: "0.25rem 0.45rem",
+    borderRadius: "999px",
+    textAlign: "center",
+    fontSize: "0.7rem",
+    fontWeight: 700,
+    border: `1px solid ${
+      tone === "in" ? "rgba(74,222,128,0.4)" : tone === "out" ? "rgba(248,113,113,0.4)" : "rgba(148,163,184,0.28)"
+    }`,
+    color: "var(--text-muted)",
+    background: "rgba(255,255,255,0.03)",
+  };
+}
+
+const gameHeaderStyle: CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "44px 1fr 44px",
+  alignItems: "center",
+  marginBottom: "1rem",
+};
+
+const backButtonStyle: CSSProperties = {
+  background: "transparent",
+  color: "#93c5fd",
+  padding: 0,
+  textAlign: "left",
+  fontWeight: 600,
+};
+
+const quickActionRowStyle: CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "1fr 1fr",
+  gap: "0.85rem",
+  marginBottom: "1rem",
+};
+
+const quickActionCardStyle: CSSProperties = {
+  minHeight: "78px",
   borderRadius: "16px",
-  background: "var(--surface-light)",
-  border: "1px solid var(--line)",
+  background: "rgba(255,255,255,0.04)",
+  border: "1px solid rgba(96,165,250,0.2)",
+  display: "grid",
+  placeItems: "center",
+  color: "#93c5fd",
+  textTransform: "lowercase",
+  gap: "0.2rem",
 };
 
-const detailBadgeStyle: CSSProperties = {
+const quickActionIconStyle: CSSProperties = {
+  fontSize: "1.2rem",
+  lineHeight: 1,
+};
+
+const gameSummaryCardStyle: CSSProperties = {
+  padding: "1rem",
+};
+
+const summaryTeamsStyle: CSSProperties = {
+  display: "grid",
+  gap: "0.95rem",
+};
+
+const summaryLogoStyle: CSSProperties = {
+  width: "40px",
+  height: "40px",
   borderRadius: "999px",
-  border: "1px solid rgba(251, 191, 36, 0.28)",
-  background: "rgba(251, 191, 36, 0.12)",
-  color: "#fde68a",
-  padding: "0.45rem 0.85rem",
-  fontSize: "0.85rem",
+  objectFit: "cover",
 };
 
-const clipChipStyle: CSSProperties = {
-  padding: "0.55rem 0.8rem",
+const summaryLogoFallbackStyle: CSSProperties = {
+  width: "40px",
+  height: "40px",
+  borderRadius: "999px",
+  background: "rgba(255,255,255,0.06)",
+  display: "grid",
+  placeItems: "center",
+  fontWeight: 800,
+  color: "var(--text-muted)",
+};
+
+const summaryCountsStyle: CSSProperties = {
+  display: "flex",
+  gap: "0.9rem",
+  marginTop: "1rem",
+  paddingTop: "1rem",
+  borderTop: "1px solid rgba(255,255,255,0.08)",
+};
+
+const summaryMetaTextStyle: CSSProperties = {
+  marginTop: "0.55rem",
+  color: "var(--text-muted)",
+};
+
+const homeLinePreviewStyle: CSSProperties = {
+  marginTop: "1rem",
+  display: "grid",
+  gridTemplateColumns: "20px minmax(0, 1fr) auto",
+  gap: "0.7rem",
+  alignItems: "center",
+  padding: "0.8rem 0.9rem",
   borderRadius: "14px",
-  background: "var(--surface-light)",
-  border: "1px solid var(--line)",
-  fontSize: "0.9rem",
-  color: "var(--text)",
+  background: "rgba(255,255,255,0.03)",
+  border: "1px solid rgba(96,165,250,0.18)",
+};
+
+const finalScoreStyle: CSSProperties = {
+  marginTop: "1rem",
+  paddingTop: "1rem",
+  borderTop: "1px solid rgba(255,255,255,0.08)",
+  fontSize: "1.05rem",
+  fontWeight: 800,
+  color: "var(--accent-light)",
+};
+
+const attendanceRowStyle: CSSProperties = {
+  display: "flex",
+  justifyContent: "space-between",
+  gap: "0.75rem",
+  alignItems: "center",
+  padding: "0.72rem 0",
+  borderBottom: "1px solid rgba(255,255,255,0.06)",
+};
+
+const attendanceAvatarStyle: CSSProperties = {
+  width: "40px",
+  height: "40px",
+  borderRadius: "999px",
+  objectFit: "cover",
+};
+
+const attendanceFallbackStyle: CSSProperties = {
+  width: "40px",
+  height: "40px",
+  borderRadius: "999px",
+  background: "rgba(255,255,255,0.06)",
+  display: "grid",
+  placeItems: "center",
+  color: "var(--text-muted)",
+  fontWeight: 800,
+};
+
+const setupGridStyle: CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+  gap: "0.8rem",
+};
+
+const matchupHistoryCardStyle: CSSProperties = {
+  borderRadius: "16px",
+  padding: "0.9rem",
+  background: "rgba(255,255,255,0.03)",
+  border: "1px solid rgba(96,165,250,0.14)",
+};
+
+const availabilityDockStyle: CSSProperties = {
+  position: "fixed",
+  left: "50%",
+  bottom: "calc(5.6rem + var(--safe-bottom))",
+  transform: "translateX(-50%)",
+  width: "min(94vw, 430px)",
+  zIndex: 90,
+};
+
+const availabilityButtonsStyle: CSSProperties = {
+  display: "flex",
+  gap: "0.75rem",
+};
+
+const availabilityExtrasStyle: CSSProperties = {
+  display: "flex",
+  gap: "0.75rem",
+  justifyContent: "center",
+  marginTop: "0.7rem",
+};
+
+const auxButtonStyle: CSSProperties = {
+  minWidth: "130px",
+  minHeight: "42px",
+  borderRadius: "999px",
+  background: "rgba(255,255,255,0.08)",
+  color: "var(--text-muted)",
+  border: "1px solid rgba(255,255,255,0.08)",
+  fontWeight: 600,
+};
+
+const linesIconStyle: CSSProperties = {
+  color: "#4ade80",
+  fontSize: "1.1rem",
+  fontWeight: 700,
+  lineHeight: 1,
+};
+
+const linesLinkStyle: CSSProperties = {
+  color: "#93c5fd",
+  whiteSpace: "nowrap",
+  fontWeight: 700,
 };

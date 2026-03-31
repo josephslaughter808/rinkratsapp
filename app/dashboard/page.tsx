@@ -43,13 +43,11 @@ export default function DashboardPage() {
   const leagueId = selectedTeam?.leagueId ?? null;
   const [loading, setLoading] = useState(true);
   const [weekOverride, setWeekOverride] = useState<number | null>(null);
-  const [availability, setAvailability] = useState<"in" | "out" | "unset">(
-    "unset"
-  );
   const [linesOpen, setLinesOpen] = useState(false);
   const [games, setGames] = useState<GameRow[]>([]);
   const [teamsById, setTeamsById] = useState<Record<string, TeamRow>>({});
   const [league, setLeague] = useState<LeagueRow | null>(null);
+  const [playerPosition, setPlayerPosition] = useState<string | null>(null);
 
   useEffect(() => {
     async function loadUser() {
@@ -133,6 +131,34 @@ export default function DashboardPage() {
     };
   }, [leagueId]);
 
+  useEffect(() => {
+    const playerId = selectedTeam?.player_id;
+
+    if (!playerId) {
+      return;
+    }
+
+    let active = true;
+
+    async function loadPlayerPosition() {
+      const { data } = await supabase
+        .from("players")
+        .select("position")
+        .eq("id", playerId)
+        .maybeSingle();
+
+      if (active) {
+        setPlayerPosition(data?.position ?? null);
+      }
+    }
+
+    loadPlayerPosition();
+
+    return () => {
+      active = false;
+    };
+  }, [selectedTeam?.player_id]);
+
   const weekBuckets = useMemo(() => buildWeekBuckets(games), [games]);
   const recommendedWeekIndex = useMemo(() => {
     if (!selectedTeamId || weekBuckets.length === 0) {
@@ -189,7 +215,9 @@ export default function DashboardPage() {
         game.home_team_id === selectedTeam.id || game.away_team_id === selectedTeam.id
     ) ?? null;
   const otherGames = activeWeek?.games.filter((game) => game.id !== yourGame?.id) ?? [];
-  const linesArePosted = Boolean(yourGame && !isFinalGame(yourGame) && weekIndex > 0);
+  const linePreview = selectedTeam
+    ? buildLinePreview(playerPosition, selectedTeam.player_id)
+    : null;
 
   return (
     <main className="page-shell" style={{ maxWidth: "760px", paddingTop: "1rem" }}>
@@ -260,7 +288,7 @@ export default function DashboardPage() {
               >
                 {isFinalGame(yourGame)
                   ? "Tap the card for details"
-                  : "Set your availability below"}
+                  : "Tap to open game details"}
               </div>
             </div>
 
@@ -279,32 +307,7 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {!isFinalGame(yourGame) && !linesArePosted ? (
-            <div style={{ marginTop: "1rem" }}>
-              <div style={benchToggleWrapStyle}>
-                <button
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    setAvailability("in");
-                  }}
-                  style={benchToggleButtonStyle(availability === "in", "in")}
-                >
-                  ✓ In
-                </button>
-                <button
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    setAvailability("out");
-                  }}
-                  style={benchToggleButtonStyle(availability === "out", "out")}
-                >
-                  ✕ Out
-                </button>
-              </div>
-            </div>
-          ) : null}
-
-          {!isFinalGame(yourGame) && linesArePosted ? (
+          {!isFinalGame(yourGame) && linePreview ? (
             <div style={{ marginTop: "1rem" }}>
               <button
                 style={linesButtonStyle}
@@ -313,7 +316,9 @@ export default function DashboardPage() {
                   setLinesOpen(true);
                 }}
               >
-                Lines
+                <span style={linesIconStyle}>≡</span>
+                <span style={{ textAlign: "left", minWidth: 0 }}>{linePreview}</span>
+                <span style={linesLinkStyle}>See Lines</span>
               </button>
             </div>
           ) : null}
@@ -560,28 +565,22 @@ function resolveRinkLabel(game: GameRow, teamsById: Record<string, TeamRow>) {
   return "Main Rink";
 }
 
-function benchToggleButtonStyle(
-  active: boolean,
-  type: "in" | "out"
-): CSSProperties {
-  return {
-    padding: "0.95rem 1rem",
-    borderRadius: "16px",
-    border: `1px solid ${
-      active
-        ? type === "in"
-          ? "rgba(34,197,94,0.45)"
-          : "rgba(239,68,68,0.45)"
-        : "var(--line)"
-    }`,
-    background: active
-      ? type === "in"
-        ? "rgba(34,197,94,0.18)"
-        : "rgba(239,68,68,0.18)"
-      : "var(--surface-light)",
-    color: "var(--text)",
-    fontWeight: 700,
-  };
+function buildLinePreview(position: string | null, playerId: string) {
+  const index = (playerId.charCodeAt(0) % 4) + 1;
+
+  if (position === "G") return "Goalie - Starting";
+  if (position === "LD" || position === "RD" || position === "D") {
+    return `Defense - ${ordinal(index)} pair`;
+  }
+  if (position === "LW" || position === "RW") return `Wing - ${ordinal(index)} line`;
+  return `Center - ${ordinal(index)} line`;
+}
+
+function ordinal(value: number) {
+  if (value === 1) return "1st";
+  if (value === 2) return "2nd";
+  if (value === 3) return "3rd";
+  return `${value}th`;
 }
 
 const mainGameCardStyle: CSSProperties = {
@@ -594,16 +593,6 @@ const mainGameCardStyle: CSSProperties = {
     "0 0 0 1px rgba(125,211,252,0.08), 0 0 22px rgba(56,189,248,0.14), 0 26px 60px rgba(0,0,0,0.34)",
   color: "var(--text)",
   cursor: "pointer",
-};
-
-const benchToggleWrapStyle: CSSProperties = {
-  display: "grid",
-  gridTemplateColumns: "1fr 1fr",
-  gap: "0.75rem",
-  padding: "0.35rem",
-  borderRadius: "18px",
-  background: "rgba(255,255,255,0.03)",
-  border: "1px solid rgba(148,163,184,0.18)",
 };
 
 const weekArrowStyle: CSSProperties = {
@@ -682,14 +671,28 @@ const centerStateStyle: CSSProperties = {
 
 const linesButtonStyle: CSSProperties = {
   width: "100%",
-  display: "inline-flex",
+  display: "grid",
+  gridTemplateColumns: "20px minmax(0, 1fr) auto",
   alignItems: "center",
-  justifyContent: "center",
+  gap: "0.7rem",
   padding: "0.9rem 1rem",
   borderRadius: "16px",
-  background: "linear-gradient(135deg, #f97316, #ea580c)",
-  color: "white",
+  background: "rgba(255,255,255,0.03)",
+  color: "var(--text)",
   fontWeight: 700,
+  border: "1px solid rgba(96,165,250,0.2)",
+};
+
+const linesIconStyle: CSSProperties = {
+  color: "#4ade80",
+  fontSize: "1.1rem",
+  fontWeight: 700,
+  lineHeight: 1,
+};
+
+const linesLinkStyle: CSSProperties = {
+  color: "#93c5fd",
+  whiteSpace: "nowrap",
 };
 
 const gameFooterMetaStyle: CSSProperties = {
