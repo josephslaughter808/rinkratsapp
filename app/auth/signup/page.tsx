@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 
 export default function SignupPage() {
   const router = useRouter();
+  const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -20,6 +21,11 @@ export default function SignupPage() {
     const { error } = await supabase.auth.signUp({
       email,
       password,
+      options: {
+        data: {
+          full_name: fullName.trim(),
+        },
+      },
     });
 
     setLoading(false);
@@ -39,6 +45,14 @@ export default function SignupPage() {
         </h1>
 
         <form onSubmit={handleSignup} style={{ display: "flex", flexDirection: "column", gap: "1rem", marginTop: "1.5rem" }}>
+          <input
+            type="text"
+            placeholder="Full name"
+            required
+            value={fullName}
+            onChange={(e) => setFullName(e.target.value)}
+          />
+
           <input
             type="email"
             placeholder="Email"

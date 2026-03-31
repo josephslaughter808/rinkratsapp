@@ -27,6 +27,7 @@ export default function LoginPage() {
     if (error) {
       setMessage(error.message);
     } else {
+      await supabase.rpc("claim_current_user_player_by_name");
       router.push("/dashboard");
     }
   };
