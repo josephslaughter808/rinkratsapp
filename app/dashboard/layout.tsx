@@ -91,15 +91,23 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     display: "flex",
                     flexDirection: "column",
                     alignItems: "center",
+                    justifyContent: "center",
+                    gap: "0.24rem",
+                    minWidth: 44,
                     textDecoration: "none",
-                    fontSize: "0.8rem",
+                    fontSize: "0.74rem",
+                    lineHeight: 1,
                     color: active ? "var(--text)" : "var(--text-muted)",
                   }}
                 >
                   <Icon
-                    className="w-6 h-6"
                     style={{
                       color: active ? "var(--text)" : "var(--text-muted)",
+                      width: 22,
+                      height: 22,
+                      filter: active
+                        ? "drop-shadow(0 0 8px rgba(253,186,116,0.38))"
+                        : "none",
                     }}
                   />
                   {label}

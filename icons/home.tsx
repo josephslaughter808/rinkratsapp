@@ -1,11 +1,14 @@
+import { GlowIcon, baseStroke, glowTailStyle } from "./shared";
+
 export default function HomeIcon(props: React.SVGProps<SVGSVGElement>) {
   return (
-    <svg viewBox="0 0 14 14" fill="currentColor" {...props}>
-      <path
-        fillRule="evenodd"
-        clipRule="evenodd"
-        d="M7.42233 0.539279c-.23895-.219039-.60571-.219039-.84466 0L0.901947 5.74203C0.566175 6.04982.375 6.4844.375 6.9399V12c0 .8975.72754 1.625 1.625 1.625h10c.8975 0 1.625-.7275 1.625-1.625V6.9399c0-.4555-.1912-.89008-.5269-1.19787L7.42233 0.539279ZM1.7466 6.66347 7 1.84786l5.2534 4.81561c.0775.07103.1216.17132.1216.27643V12c0 .2071-.1679.375-.375.375H8V9c0-.55229-.44772-1-1-1s-1 .44771-1 1v3.375H2c-.20711 0-.375-.1679-.375-.375V6.9399c0-.10511.04412-.2054.1216-.27643Z"
-      />
-    </svg>
+    <GlowIcon
+      {...props}
+      tail={<path d="M4.5 17.5C6 18.6 7.7 19.3 9.9 19.8" style={glowTailStyle} />}
+    >
+      <path d="M4 10.5L12 4L20 10.5" style={baseStroke} />
+      <path d="M6.5 9.8V19H17.5V9.8" style={baseStroke} />
+      <path d="M10 19V13H14V19" style={baseStroke} />
+    </GlowIcon>
   );
 }

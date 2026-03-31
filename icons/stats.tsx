@@ -1,11 +1,15 @@
+import { GlowIcon, baseStroke, glowTailStyle } from "./shared";
+
 export default function StatsIcon(props: React.SVGProps<SVGSVGElement>) {
   return (
-    <svg viewBox="0 0 14 14" fill="currentColor" {...props}>
-      <path
-        fillRule="evenodd"
-        clipRule="evenodd"
-        d="M1 0.375C.654822.375.375.654822.375 1v3c0 1.62517 1.24058 2.96059 2.8264 3.11092 0.51707 1.21774 1.6026 2.13577 2.9236 2.42109V12.125H4.5c-.48325 0-.875.3918-.875.875s.39175.875.875.875h5c.48325 0 .875-.3918.875-.875s-.39175-.875-.875-.875H7.875V9.53201c1.321-.28532 2.4065-1.20335 2.9236-2.42109C12.3844 6.9606 13.625 5.62517 13.625 4V1c0-.345178-.2798-.625-.625-.625H1Zm3.125 1.25V5.5c0 1.58782 1.28718 2.875 2.875 2.875S9.875 7.08782 9.875 5.5V1.625h-5.75Zm-1.25 0h-1.25V4c0 .81639.52175 1.51091 1.25 1.76831V1.625Zm8.25 0v4.14331c.7282-.2574 1.25-.95192 1.25-1.76831V1.625h-1.25Z"
-      />
-    </svg>
+    <GlowIcon
+      {...props}
+      tail={<path d="M4.5 17.5C6.4 18.4 8 19 10.5 19.4" style={glowTailStyle} />}
+    >
+      <path d="M6 18V11" style={baseStroke} />
+      <path d="M12 18V7" style={baseStroke} />
+      <path d="M18 18V13" style={baseStroke} />
+      <path d="M4.5 18.5H19.5" style={baseStroke} />
+    </GlowIcon>
   );
 }
