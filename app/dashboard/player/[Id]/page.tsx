@@ -36,6 +36,14 @@ type GameStat = {
   points: number;
 };
 
+type HighlightClip = {
+  id: string;
+  game_id: string;
+  url: string;
+  timestamp_seconds: number | null;
+  description: string | null;
+};
+
 export default function PlayerPage() {
   const params = useParams();
   const id = params?.id as string | undefined;
@@ -44,11 +52,11 @@ export default function PlayerPage() {
   const [player, setPlayer] = useState<Player | null>(null);
   const [seasonStats, setSeasonStats] = useState<SeasonStats | null>(null);
   const [gameStats, setGameStats] = useState<GameStat[]>([]);
+  const [highlightClips, setHighlightClips] = useState<HighlightClip[]>([]);
 
   useEffect(() => {
     if (!id) {
       console.error("No player id in route params");
-      setLoading(false);
       return;
     }
 
@@ -89,11 +97,18 @@ export default function PlayerPage() {
       }
 
       // 3. Game-by-game stats
-      const { data: games, error: gamesErr } = await supabase
+      const [{ data: games, error: gamesErr }, { data: clipRows }] = await Promise.all([
+        supabase
         .from("game_stats")
         .select("id, game_id, goals, assists, pim, points")
         .eq("player_id", id)
-        .order("id", { ascending: false });
+        .order("id", { ascending: false }),
+        supabase
+          .from("video_clips")
+          .select("id, game_id, url, timestamp_seconds, description")
+          .eq("player_id", id)
+          .order("created_at", { ascending: false }),
+      ]);
 
       if (gamesErr) {
         console.error("GAME STATS ERROR:", gamesErr);
@@ -101,6 +116,8 @@ export default function PlayerPage() {
       } else {
         setGameStats((games as GameStat[]) || []);
       }
+
+      setHighlightClips((clipRows as HighlightClip[]) || []);
 
       setLoading(false);
     }
@@ -112,6 +129,19 @@ export default function PlayerPage() {
     return (
       <main className="center-screen">
         <p>Loading...</p>
+      </main>
+    );
+  }
+
+  if (!id) {
+    return (
+      <main
+        style={{
+          padding: "2rem",
+          textAlign: "center",
+        }}
+      >
+        <h1 style={{ fontSize: "1.6rem", fontWeight: 700 }}>Player not found</h1>
       </main>
     );
   }
@@ -318,12 +348,41 @@ export default function PlayerPage() {
             </div>
 
             {/* HIGHLIGHTS */}
-            <div style={{ opacity: 0.7, fontSize: "0.85rem" }}>
-              Highlights: (coming soon)
+            <div style={{ opacity: 0.85, fontSize: "0.85rem" }}>
+              {highlightClips
+                .filter((clip) => clip.game_id === gs.game_id)
+                .slice(0, 3)
+                .map((clip) => (
+                  <a
+                    key={clip.id}
+                    href={clip.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    style={{
+                      display: "block",
+                      marginTop: "0.35rem",
+                      color: "var(--accent-light)",
+                    }}
+                  >
+                    {clip.description || "Watch highlight"}
+                    {clip.timestamp_seconds !== null
+                      ? ` • ${formatTimestamp(clip.timestamp_seconds)}`
+                      : ""}
+                  </a>
+                ))}
+              {!highlightClips.some((clip) => clip.game_id === gs.game_id)
+                ? "Highlights: none linked yet"
+                : null}
             </div>
           </div>
         ))}
       </section>
     </main>
   );
+}
+
+function formatTimestamp(seconds: number) {
+  const minutes = Math.floor(seconds / 60);
+  const remainder = seconds % 60;
+  return `${minutes}:${String(remainder).padStart(2, "0")}`;
 }

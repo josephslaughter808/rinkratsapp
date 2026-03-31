@@ -34,6 +34,22 @@ type ClipRow = {
   }> | null;
 };
 
+type RichClipRow = {
+  id: string;
+  title: string;
+  description: string | null;
+  clip_type: string;
+  start_seconds: number;
+  end_seconds: number;
+  published: boolean;
+  created_at: string;
+  game_clip_players?: Array<{
+    player_id: string;
+    involvement_role: string;
+    players?: Array<{ name: string | null }> | null;
+  }> | null;
+};
+
 export default function GameDetailsPage() {
   const params = useParams<{ gameId: string }>();
   const gameId = params?.gameId;
@@ -41,6 +57,7 @@ export default function GameDetailsPage() {
   const [game, setGame] = useState<GameRow | null>(null);
   const [teamsById, setTeamsById] = useState<Record<string, TeamRow>>({});
   const [clips, setClips] = useState<ClipRow[]>([]);
+  const [richClips, setRichClips] = useState<RichClipRow[]>([]);
 
   useEffect(() => {
     if (!gameId) {
@@ -71,12 +88,19 @@ export default function GameDetailsPage() {
 
       const teamIds = [gameRow.home_team_id, gameRow.away_team_id].filter(Boolean) as string[];
 
-      const [{ data: teamRows }, { data: clipRows }] = await Promise.all([
+      const [{ data: teamRows }, { data: clipRows }, richClipsResult] = await Promise.all([
         supabase.from("teams").select("id, name, logo_url").in("id", teamIds),
         supabase
           .from("video_clips")
           .select("id, description, url, timestamp_seconds, player_id, players(name)")
           .eq("game_id", gameRow.id),
+        supabase
+          .from("game_clips")
+          .select(
+            "id, title, description, clip_type, start_seconds, end_seconds, published, created_at, game_clip_players(player_id, involvement_role, players(name))"
+          )
+          .eq("game_id", gameRow.id)
+          .order("created_at", { ascending: false }),
       ]);
 
       if (!active) {
@@ -87,6 +111,7 @@ export default function GameDetailsPage() {
         Object.fromEntries(((teamRows ?? []) as TeamRow[]).map((team) => [team.id, team]))
       );
       setClips((clipRows ?? []) as unknown as ClipRow[]);
+      setRichClips(richClipsResult.error ? [] : ((richClipsResult.data ?? []) as unknown as RichClipRow[]));
       setLoading(false);
     }
 
@@ -178,7 +203,30 @@ export default function GameDetailsPage() {
 
         {clips.length ? (
           <div style={{ display: "grid", gap: "1rem" }}>
-            {clips.map((clip) => (
+            {(richClips.length
+              ? richClips.map((clip) => ({
+                  id: clip.id,
+                  title: clip.title,
+                  description: clip.description,
+                  displayType: clip.clip_type,
+                  clipLabel: formatRange(clip.start_seconds, clip.end_seconds),
+                  playerName:
+                    clip.game_clip_players?.[0]?.players?.[0]?.name || "Unassigned",
+                  url: "",
+                }))
+              : clips.map((clip) => ({
+                  id: clip.id,
+                  title: clip.description || "Tagged clip",
+                  description: clip.description,
+                  displayType: "clip",
+                  clipLabel:
+                    clip.timestamp_seconds !== null
+                      ? formatTimestamp(clip.timestamp_seconds)
+                      : "Timestamp TBD",
+                  playerName: clip.players?.[0]?.name || "Unassigned",
+                  url: clip.url,
+                }))
+            ).map((clip) => (
               <article
                 key={clip.id}
                 style={{
@@ -191,19 +239,21 @@ export default function GameDetailsPage() {
                 <div style={{ display: "flex", justifyContent: "space-between", gap: "0.75rem", flexWrap: "wrap", marginBottom: "0.65rem" }}>
                   <div>
                     <div style={{ color: "var(--accent-light)", fontSize: "0.82rem", textTransform: "uppercase" }}>
-                      Clip {clip.timestamp_seconds !== null ? `• ${formatTimestamp(clip.timestamp_seconds)}` : ""}
+                      {clip.displayType} • {clip.clipLabel}
                     </div>
                     <h3 style={{ fontSize: "1.2rem", marginTop: "0.25rem" }}>
-                      {clip.description || "Tagged clip"}
+                      {clip.title}
                     </h3>
                   </div>
-                  <a href={clip.url} target="_blank" rel="noreferrer" style={clipChipStyle}>
-                    Open clip
-                  </a>
+                  {clip.url ? (
+                    <a href={clip.url} target="_blank" rel="noreferrer" style={clipChipStyle}>
+                      Open clip
+                    </a>
+                  ) : null}
                 </div>
 
                 <div style={{ color: "var(--text-muted)" }}>
-                  Tagged player: {clip.players?.[0]?.name || "Unassigned"}
+                  Tagged player: {clip.playerName}
                 </div>
               </article>
             ))}
@@ -258,6 +308,10 @@ function formatTimestamp(seconds: number) {
   const minutes = Math.floor(seconds / 60);
   const remainder = seconds % 60;
   return `${minutes}:${String(remainder).padStart(2, "0")}`;
+}
+
+function formatRange(start: number, end: number) {
+  return `${formatTimestamp(start)} - ${formatTimestamp(end)}`;
 }
 
 const detailSummaryStyle: CSSProperties = {
