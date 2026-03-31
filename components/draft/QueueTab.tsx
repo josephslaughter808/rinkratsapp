@@ -10,7 +10,7 @@ export default function QueueTab({
   onToggleQueue: (playerId: string) => void;
 }) {
   return (
-    <div style={{ display: "grid", gap: "0.75rem" }}>
+    <div style={queueTabShellStyle}>
       <div style={stickyControlsStyle}>
         <div style={headerRowStyle}>
           <div style={avatarHeaderStyle} />
@@ -107,6 +107,11 @@ function getPositionBadgeColor(position: string) {
   return "#cbd5e1";
 }
 
+const queueTabShellStyle: React.CSSProperties = {
+  display: "block",
+  alignSelf: "start",
+};
+
 const stickyControlsStyle: React.CSSProperties = {
   position: "sticky",
   top: 0,
@@ -122,6 +127,7 @@ const tableShellStyle: React.CSSProperties = {
   display: "grid",
   gap: "0.15rem",
   borderTop: "1px solid rgba(148,163,184,0.14)",
+  alignContent: "start",
 };
 
 const emptyStateStyle: React.CSSProperties = {
