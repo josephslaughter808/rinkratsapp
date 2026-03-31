@@ -250,9 +250,9 @@ const tableShellStyle: React.CSSProperties = {
 
 const headerRowStyle: React.CSSProperties = {
   display: "grid",
-  gridTemplateColumns: "34px minmax(0, 1.28fr) 40px 46px 48px 48px 72px",
+  gridTemplateColumns: "34px minmax(0, 1.46fr) 30px 38px 34px 48px 72px",
   alignItems: "center",
-  gap: "0.42rem",
+  gap: "0.34rem",
   padding: "0.45rem 0.35rem 0.35rem",
   color: "rgba(255,255,255,0.65)",
   fontSize: "0.66rem",
@@ -278,9 +278,9 @@ const queueHeaderStyle: React.CSSProperties = {
 
 const playerRowStyle: React.CSSProperties = {
   display: "grid",
-  gridTemplateColumns: "34px minmax(0, 1.28fr) 40px 46px 48px 48px 72px",
+  gridTemplateColumns: "34px minmax(0, 1.46fr) 30px 38px 34px 48px 72px",
   alignItems: "center",
-  gap: "0.42rem",
+  gap: "0.34rem",
   minHeight: "50px",
   padding: "0.38rem 0.35rem",
   borderTop: "1px solid rgba(148,163,184,0.08)",
@@ -317,7 +317,7 @@ const playerSublineStyle: React.CSSProperties = {
   display: "flex",
   alignItems: "center",
   gap: "0.35rem",
-  flexWrap: "wrap",
+  flexWrap: "nowrap",
   marginTop: "0.14rem",
   color: "rgba(255,255,255,0.58)",
   fontSize: "0.72rem",
@@ -328,7 +328,7 @@ const numberCellStyle: React.CSSProperties = {
   color: "rgba(255,255,255,0.78)",
   fontSize: "0.8rem",
   fontWeight: 600,
-  paddingRight: "0.14rem",
+  paddingRight: "0.08rem",
 };
 
 const queueCellStyle: React.CSSProperties = {
