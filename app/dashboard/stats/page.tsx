@@ -57,6 +57,12 @@ type LoggedEvent =
       playerName: string;
       targetNumber: string;
       createdAt: string;
+    }
+  | {
+      id: string;
+      type: "goalAgainst";
+      onIcePlayerIds: string[];
+      createdAt: string;
     };
 
 type ProfileSummary = {
@@ -295,6 +301,15 @@ function applyEvents(baseRows: StatRow[], events: LoggedEvent[]) {
         hitter.plusMinus += 1;
       }
     }
+
+    if (event.type === "goalAgainst") {
+      for (const playerId of event.onIcePlayerIds) {
+        const onIcePlayer = next.get(playerId);
+        if (onIcePlayer) {
+          onIcePlayer.plusMinus -= 1;
+        }
+      }
+    }
   }
 
   return Array.from(next.values());
@@ -328,7 +343,7 @@ export default function StatsPage() {
   const [teamSortDir, setTeamSortDir] = useState<"asc" | "desc">("desc");
   const [leagueSortField, setLeagueSortField] = useState<keyof StatRow>("points");
   const [leagueSortDir, setLeagueSortDir] = useState<"asc" | "desc">("desc");
-  const [eventType, setEventType] = useState<"goal" | "penalty" | "hit">("goal");
+  const [eventType, setEventType] = useState<"goal" | "penalty" | "hit" | "goalAgainst">("goal");
   const [loggedEvents, setLoggedEvents] = useState<LoggedEvent[]>([]);
   const [goalScorerId, setGoalScorerId] = useState("");
   const [goalAssistOneId, setGoalAssistOneId] = useState("");
@@ -339,6 +354,7 @@ export default function StatsPage() {
   const [penaltyMinutes, setPenaltyMinutes] = useState(2);
   const [hitPlayerId, setHitPlayerId] = useState("");
   const [hitTargetNumber, setHitTargetNumber] = useState("");
+  const [goalAgainstPlayerIds, setGoalAgainstPlayerIds] = useState<string[]>([]);
   const [showGlobalStatsHeader, setShowGlobalStatsHeader] = useState(false);
 
   const isStaffEditor =
@@ -617,6 +633,21 @@ export default function StatsPage() {
       return;
     }
 
+    if (eventType === "goalAgainst") {
+      if (goalAgainstPlayerIds.length === 0) return;
+
+      const nextEvent: LoggedEvent = {
+        id: `${Date.now()}`,
+        type: "goalAgainst",
+        onIcePlayerIds: goalAgainstPlayerIds,
+        createdAt: now,
+      };
+
+      persistEvents([nextEvent, ...loggedEvents]);
+      setGoalAgainstPlayerIds([]);
+      return;
+    }
+
     const hitter = rosterOptions.find((player) => player.player_id === hitPlayerId);
     if (!hitter) return;
 
@@ -637,6 +668,14 @@ export default function StatsPage() {
   function handlePenaltyTypeChange(nextType: string) {
     setPenaltyType(nextType);
     setPenaltyMinutes(penaltyDefaults[nextType] ?? 2);
+  }
+
+  function toggleGoalAgainstPlayer(playerId: string) {
+    setGoalAgainstPlayerIds((current) =>
+      current.includes(playerId)
+        ? current.filter((id) => id !== playerId)
+        : [...current, playerId]
+    );
   }
 
   return (
@@ -802,7 +841,7 @@ export default function StatsPage() {
           </div>
 
           <div style={{ display: "flex", gap: "0.55rem", flexWrap: "wrap", marginBottom: "1rem" }}>
-            {(["goal", "penalty", "hit"] as const).map((type) => (
+            {(["goal", "penalty", "hit", "goalAgainst"] as const).map((type) => (
               <button
                 key={type}
                 onClick={() => setEventType(type)}
@@ -907,6 +946,33 @@ export default function StatsPage() {
                 onChange={(event) => setHitTargetNumber(event.target.value)}
                 style={inputStyle}
               />
+            </div>
+          ) : null}
+
+          {eventType === "goalAgainst" ? (
+            <div style={{ display: "grid", gap: "0.9rem" }}>
+              <div style={{ color: "var(--text-muted)" }}>
+                Mark every player who was on the ice for the goal against. Each selected skater will get a `-1` to `+/-`.
+              </div>
+              <div style={onIceGridStyle}>
+                {rosterOptions.map((player) => {
+                  const checked = goalAgainstPlayerIds.includes(player.player_id);
+
+                  return (
+                    <button
+                      key={player.player_id}
+                      type="button"
+                      onClick={() => toggleGoalAgainstPlayer(player.player_id)}
+                      style={onIcePlayerButtonStyle(checked)}
+                    >
+                      <span style={{ fontWeight: 700 }}>{player.name}</span>
+                      <span style={{ color: "var(--text-muted)", fontSize: "0.8rem" }}>
+                        On ice {player.player_id === playerId ? "• You" : ""}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           ) : null}
 
@@ -1083,6 +1149,12 @@ const entryGridStyle: React.CSSProperties = {
   gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
 };
 
+const onIceGridStyle: React.CSSProperties = {
+  display: "grid",
+  gap: "0.7rem",
+  gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
+};
+
 const inputStyle: React.CSSProperties = {
   width: "100%",
   minHeight: "48px",
@@ -1100,6 +1172,20 @@ const checkboxLabelStyle: React.CSSProperties = {
   gap: "0.6rem",
   color: "var(--text)",
 };
+
+function onIcePlayerButtonStyle(active: boolean): React.CSSProperties {
+  return {
+    minHeight: "56px",
+    borderRadius: "14px",
+    border: `1px solid ${active ? "rgba(239,68,68,0.42)" : "var(--line)"}`,
+    background: active ? "rgba(239,68,68,0.14)" : "rgba(7, 17, 31, 0.72)",
+    color: "var(--text)",
+    padding: "0.75rem 0.85rem",
+    textAlign: "left",
+    display: "grid",
+    gap: "0.2rem",
+  };
+}
 
 function entryTabStyle(active: boolean): React.CSSProperties {
   return {
