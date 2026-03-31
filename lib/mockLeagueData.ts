@@ -523,7 +523,7 @@ export const draftPlayers: DraftPlayer[] = [
 ];
 
 export const draftedPlayerIds = ["dp2", "dp4"];
-export const draftQueue = ["dp1", "dp3", "dp5"];
+export const draftQueue: string[] = [];
 
 export const draftPicks: DraftPick[] = [
   {
