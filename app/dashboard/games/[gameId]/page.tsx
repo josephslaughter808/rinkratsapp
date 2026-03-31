@@ -58,6 +58,7 @@ export default function GameDetailsPage() {
   const [roster, setRoster] = useState<RosterPlayer[]>([]);
   const [previousMatchups, setPreviousMatchups] = useState<PreviousMatchup[]>([]);
   const [myStatus, setMyStatus] = useState<AvailabilityStatus>("in");
+  const [linesOpen, setLinesOpen] = useState(false);
 
   useEffect(() => {
     if (!gameId) return;
@@ -215,8 +216,11 @@ export default function GameDetailsPage() {
     unknown: availability.awaiting.length,
   };
 
+  const linesArePosted = ["captain", "assistant_captain"].includes(
+    selectedTeam?.role ?? ""
+  );
   const currentPlayer = roster.find((player) => player.id === selectedTeam?.player_id);
-  const linePreview = selectedTeam
+  const linePreview = selectedTeam && linesArePosted
     ? buildLinePreview(currentPlayer?.position ?? null, selectedTeam.player_id)
     : "Line placement pending";
 
@@ -237,16 +241,9 @@ export default function GameDetailsPage() {
 
       {!isFinal ? (
         <section style={quickActionRowStyle}>
-          <button style={quickActionCardStyle}>
+          <button style={quickActionCardStyle} onClick={() => setLinesOpen(true)}>
             <span style={quickActionIconStyle}>≡</span>
             <span>lines</span>
-          </button>
-          <button
-            style={quickActionCardStyle}
-            onClick={() => router.push("/dashboard/chat")}
-          >
-            <span style={quickActionIconStyle}>✉</span>
-            <span>message</span>
           </button>
         </section>
       ) : null}
@@ -269,11 +266,16 @@ export default function GameDetailsPage() {
               {Math.max(counts.in - 1, 0)} skaters &nbsp; 1 goalie
             </div>
 
-            <div style={homeLinePreviewStyle}>
+            {linesArePosted ? (
+              <button
+                style={homeLinePreviewStyle}
+                onClick={() => setLinesOpen(true)}
+              >
               <span style={linesIconStyle}>≡</span>
               <span>{linePreview}</span>
               <span style={linesLinkStyle}>See Lines</span>
-            </div>
+              </button>
+            ) : null}
           </>
         ) : (
           <div style={finalScoreStyle}>
@@ -345,6 +347,7 @@ export default function GameDetailsPage() {
 
       {!isFinal ? (
         <div style={availabilityDockStyle}>
+          <div style={availabilityDockShellStyle}>
           <div style={availabilityButtonsStyle}>
             <button
               style={dockButtonStyle(myStatus === "in", "in")}
@@ -365,9 +368,74 @@ export default function GameDetailsPage() {
             <button style={auxButtonStyle}>Add Note</button>
             <button style={auxButtonStyle}>Request Ride</button>
           </div>
+          </div>
+        </div>
+      ) : null}
+
+      {linesOpen ? (
+        <div style={sheetOverlayStyle} onClick={() => setLinesOpen(false)}>
+          <div style={sheetStyle} onClick={(event) => event.stopPropagation()}>
+            <div style={sheetHandleStyle} />
+            <div style={sheetHeaderStyle}>
+              <div style={{ width: 56 }} />
+              <h2 style={{ fontSize: "1.35rem" }}>Lines</h2>
+              <button style={sheetDoneStyle} onClick={() => setLinesOpen(false)}>
+                Done
+              </button>
+            </div>
+
+            <div style={sheetContentStyle}>
+              <LineGroup
+                title="Forward 1st Line"
+                rows={[["LW", "To be posted"], ["C", "To be posted"], ["RW", "To be posted"]]}
+              />
+              <LineGroup
+                title="Forward 2nd Line"
+                rows={[["LW", "To be posted"], ["C", "To be posted"], ["RW", "To be posted"]]}
+              />
+              <LineGroup
+                title="Forward 3rd Line"
+                rows={[["LW", "To be posted"], ["C", "To be posted"], ["RW", "To be posted"]]}
+              />
+              <LineGroup
+                title="Defence 1st Pair"
+                rows={[["LD", "To be posted"], ["RD", "To be posted"]]}
+              />
+              <LineGroup
+                title="Defence 2nd Pair"
+                rows={[["LD", "To be posted"], ["RD", "To be posted"]]}
+              />
+              <LineGroup
+                title="Defence 3rd Pair"
+                rows={[["LD", "To be posted"], ["RD", "To be posted"]]}
+              />
+            </div>
+          </div>
         </div>
       ) : null}
     </main>
+  );
+}
+
+function LineGroup({
+  title,
+  rows,
+}: {
+  title: string;
+  rows: [string, string][];
+}) {
+  return (
+    <section style={{ marginBottom: "1.1rem" }}>
+      <div style={{ fontWeight: 700, marginBottom: "0.45rem" }}>{title}</div>
+      <div style={lineGroupCardStyle}>
+        {rows.map(([position, player]) => (
+          <div key={`${title}-${position}`} style={lineRowStyle}>
+            <div style={linePositionStyle}>{position}</div>
+            <div style={linePlayerStyle}>{player}</div>
+          </div>
+        ))}
+      </div>
+    </section>
   );
 }
 
@@ -512,11 +580,11 @@ function dockButtonStyle(active: boolean, type: "in" | "out"): CSSProperties {
     background: active
       ? type === "in"
         ? "#67d96f"
-        : "#f3f4f6"
+        : "#ef4444"
       : type === "in"
         ? "rgba(103,217,111,0.2)"
-        : "rgba(255,255,255,0.08)",
-    color: active ? (type === "in" ? "#ffffff" : "#111827") : "#f8fafc",
+        : "rgba(239,68,68,0.18)",
+    color: active ? "#ffffff" : "#f8fafc",
     display: "flex",
     alignItems: "center",
     justifyContent: "space-between",
@@ -558,7 +626,7 @@ const backButtonStyle: CSSProperties = {
 
 const quickActionRowStyle: CSSProperties = {
   display: "grid",
-  gridTemplateColumns: "1fr 1fr",
+  gridTemplateColumns: "1fr",
   gap: "0.85rem",
   marginBottom: "1rem",
 };
@@ -630,6 +698,8 @@ const homeLinePreviewStyle: CSSProperties = {
   borderRadius: "14px",
   background: "rgba(255,255,255,0.03)",
   border: "1px solid rgba(96,165,250,0.18)",
+  width: "100%",
+  color: "var(--text)",
 };
 
 const finalScoreStyle: CSSProperties = {
@@ -684,10 +754,19 @@ const matchupHistoryCardStyle: CSSProperties = {
 const availabilityDockStyle: CSSProperties = {
   position: "fixed",
   left: "50%",
-  bottom: "calc(5.6rem + var(--safe-bottom))",
+  bottom: "calc(5.25rem + var(--safe-bottom))",
   transform: "translateX(-50%)",
   width: "min(94vw, 430px)",
   zIndex: 90,
+};
+
+const availabilityDockShellStyle: CSSProperties = {
+  padding: "0.7rem",
+  borderRadius: "26px",
+  background: "rgba(8,18,32,0.96)",
+  border: "1px solid rgba(96,165,250,0.18)",
+  boxShadow: "0 18px 42px rgba(2,6,23,0.34)",
+  backdropFilter: "blur(18px)",
 };
 
 const availabilityButtonsStyle: CSSProperties = {
@@ -706,7 +785,7 @@ const auxButtonStyle: CSSProperties = {
   minWidth: "130px",
   minHeight: "42px",
   borderRadius: "999px",
-  background: "rgba(255,255,255,0.08)",
+  background: "rgba(255,255,255,0.06)",
   color: "var(--text-muted)",
   border: "1px solid rgba(255,255,255,0.08)",
   fontWeight: 600,
@@ -723,4 +802,90 @@ const linesLinkStyle: CSSProperties = {
   color: "#93c5fd",
   whiteSpace: "nowrap",
   fontWeight: 700,
+};
+
+const sheetOverlayStyle: CSSProperties = {
+  position: "fixed",
+  inset: 0,
+  background: "rgba(2,6,14,0.82)",
+  zIndex: 2200,
+  display: "flex",
+  alignItems: "flex-end",
+  backdropFilter: "blur(12px)",
+};
+
+const sheetStyle: CSSProperties = {
+  width: "100%",
+  maxHeight: "100vh",
+  background: "linear-gradient(180deg, rgba(9,16,29,0.99), rgba(5,10,19,0.99))",
+  color: "var(--text)",
+  borderTopLeftRadius: "24px",
+  borderTopRightRadius: "24px",
+  padding: "calc(var(--safe-top) + 0.55rem) 1rem 1.2rem",
+  overflow: "hidden",
+  borderTop: "1px solid rgba(148,163,184,0.16)",
+  boxShadow: "0 -24px 80px rgba(0,0,0,0.45)",
+};
+
+const sheetHandleStyle: CSSProperties = {
+  width: "56px",
+  height: "5px",
+  borderRadius: "999px",
+  background: "rgba(226,232,240,0.22)",
+  margin: "0.35rem auto 0.55rem",
+};
+
+const sheetHeaderStyle: CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "56px 1fr 56px",
+  alignItems: "center",
+  marginBottom: "0.9rem",
+  textAlign: "center",
+};
+
+const sheetDoneStyle: CSSProperties = {
+  background: "transparent",
+  color: "var(--accent-light)",
+  padding: 0,
+  fontWeight: 700,
+};
+
+const sheetContentStyle: CSSProperties = {
+  overflowY: "auto",
+  maxHeight: "calc(100vh - var(--safe-top) - 92px)",
+  paddingBottom: "1rem",
+};
+
+const lineGroupCardStyle: CSSProperties = {
+  background: "rgba(10,18,31,0.92)",
+  borderRadius: "16px",
+  overflow: "hidden",
+  border: "1px solid rgba(148,163,184,0.14)",
+  boxShadow: "inset 0 1px 0 rgba(255,255,255,0.03)",
+};
+
+const lineRowStyle: CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "52px 1fr",
+  minHeight: "54px",
+  borderBottom: "1px solid rgba(148,163,184,0.12)",
+};
+
+const linePositionStyle: CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  fontWeight: 700,
+  fontSize: "0.82rem",
+  color: "var(--accent-light)",
+  background: "rgba(56,189,248,0.08)",
+  borderRight: "1px solid rgba(148,163,184,0.12)",
+};
+
+const linePlayerStyle: CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  padding: "0 0.9rem",
+  fontWeight: 600,
+  color: "var(--text)",
 };

@@ -215,8 +215,13 @@ export default function DashboardPage() {
         game.home_team_id === selectedTeam.id || game.away_team_id === selectedTeam.id
     ) ?? null;
   const otherGames = activeWeek?.games.filter((game) => game.id !== yourGame?.id) ?? [];
+  const linesArePosted = ["captain", "assistant_captain"].includes(
+    selectedTeam.role ?? ""
+  );
   const linePreview = selectedTeam
-    ? buildLinePreview(playerPosition, selectedTeam.player_id)
+    ? linesArePosted
+      ? buildLinePreview(playerPosition, selectedTeam.player_id)
+      : null
     : null;
 
   return (
@@ -417,6 +422,14 @@ export default function DashboardPage() {
                 ]}
               />
               <LineGroup
+                title="Forward 3rd Line"
+                rows={[
+                  ["LW", "To be posted"],
+                  ["C", "To be posted"],
+                  ["RW", "To be posted"],
+                ]}
+              />
+              <LineGroup
                 title="Defence 1st Pair"
                 rows={[
                   ["LD", "To be posted"],
@@ -424,10 +437,23 @@ export default function DashboardPage() {
                 ]}
               />
               <LineGroup
-                title="Goalies"
+                title="Defence 2nd Pair"
+                rows={[
+                  ["LD", "To be posted"],
+                  ["RD", "To be posted"],
+                ]}
+              />
+              <LineGroup
+                title="Defence 3rd Pair"
+                rows={[
+                  ["LD", "To be posted"],
+                  ["RD", "To be posted"],
+                ]}
+              />
+              <LineGroup
+                title="Goalie"
                 rows={[
                   ["G", "To be posted"],
-                  ["G2", "To be posted"],
                 ]}
               />
             </div>
@@ -724,7 +750,7 @@ const sheetOverlayStyle: CSSProperties = {
   position: "fixed",
   inset: 0,
   background: "rgba(2,6,14,0.72)",
-  zIndex: 120,
+  zIndex: 2200,
   display: "flex",
   alignItems: "flex-end",
   backdropFilter: "blur(10px)",
@@ -732,12 +758,12 @@ const sheetOverlayStyle: CSSProperties = {
 
 const sheetStyle: CSSProperties = {
   width: "100%",
-  maxHeight: "86vh",
+  maxHeight: "100vh",
   background: "linear-gradient(180deg, rgba(9,16,29,0.98), rgba(5,10,19,0.98))",
   color: "var(--text)",
   borderTopLeftRadius: "24px",
   borderTopRightRadius: "24px",
-  padding: "0.55rem 1rem 1.2rem",
+  padding: "calc(var(--safe-top) + 0.55rem) 1rem 1.2rem",
   overflow: "hidden",
   borderTop: "1px solid rgba(148,163,184,0.16)",
   boxShadow: "0 -24px 80px rgba(0,0,0,0.45)",
@@ -768,7 +794,7 @@ const sheetDoneStyle: CSSProperties = {
 
 const sheetContentStyle: CSSProperties = {
   overflowY: "auto",
-  maxHeight: "calc(86vh - 92px)",
+  maxHeight: "calc(100vh - var(--safe-top) - 92px)",
   paddingBottom: "1rem",
 };
 
