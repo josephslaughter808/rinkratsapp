@@ -141,7 +141,7 @@ export default function DraftPickRail({
                       <img
                         src={team.logoUrl}
                         alt={team.name}
-                        style={{ width: 26, height: 26, objectFit: "contain" }}
+                        style={teamLogoImageStyle}
                       />
                     ) : (
                       <span style={{ fontSize: "1.05rem", fontWeight: 800 }}>
@@ -183,8 +183,8 @@ function withAlpha(hex: string, alpha: number) {
 
 function teamLogoStyle(accent?: string): React.CSSProperties {
   return {
-    width: 34,
-    height: 34,
+    width: 42,
+    height: 42,
     borderRadius: "999px",
     display: "flex",
     alignItems: "center",
@@ -194,8 +194,18 @@ function teamLogoStyle(accent?: string): React.CSSProperties {
     border: `2px solid ${withAlpha(accent || "#f97316", 0.86)}`,
     boxShadow: `0 6px 14px ${withAlpha(accent || "#f97316", 0.16)}`,
     textAlign: "center",
+    overflow: "hidden",
   };
 }
+
+const teamLogoImageStyle: React.CSSProperties = {
+  width: 34,
+  height: 34,
+  borderRadius: "999px",
+  objectFit: "cover",
+  display: "block",
+  background: "rgba(255,255,255,0.06)",
+};
 
 const teamNameUnderStyle: React.CSSProperties = {
   marginTop: "0.38rem",
