@@ -173,6 +173,10 @@ export default function TeamSwitcher() {
       void loadPlayerCard();
     };
 
+    const handleProfileRefresh = () => {
+      void loadPlayerCard();
+    };
+
     const handleVisibilityChange = () => {
       if (!document.hidden) {
         void loadPlayerCard();
@@ -183,6 +187,7 @@ export default function TeamSwitcher() {
       "pucklytics-profile-photo-updated",
       handleProfilePhotoUpdate as EventListener
     );
+    window.addEventListener("pucklytics-player-profile-updated", handleProfileRefresh);
     window.addEventListener("focus", refreshPlayerCard);
     document.addEventListener("visibilitychange", handleVisibilityChange);
 
@@ -191,6 +196,7 @@ export default function TeamSwitcher() {
         "pucklytics-profile-photo-updated",
         handleProfilePhotoUpdate as EventListener
       );
+      window.removeEventListener("pucklytics-player-profile-updated", handleProfileRefresh);
       window.removeEventListener("focus", refreshPlayerCard);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };

@@ -39,6 +39,8 @@ export default function ProfilePage() {
   const [player, setPlayer] = useState<PlayerProfile | null>(null);
   const [memberships, setMemberships] = useState<MembershipCard[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [savingPosition, setSavingPosition] = useState(false);
+  const [selectedPosition, setSelectedPosition] = useState<string>("");
   const [email, setEmail] = useState<string | null>(null);
 
   useEffect(() => {
@@ -91,6 +93,7 @@ export default function ProfilePage() {
           position: playerData.position ?? null,
           profile_pic_url: sharedProfileRow?.profile_pic_url ?? playerData.profile_pic_url,
         });
+        setSelectedPosition(playerData.position ?? "");
       }
 
       const { data: membershipRows } = await supabase
@@ -171,10 +174,41 @@ export default function ProfilePage() {
           detail: publicUrl,
         })
       );
+      window.dispatchEvent(new Event("pucklytics-player-profile-updated"));
     } catch (error) {
       console.error("Error uploading avatar:", error);
     } finally {
       setUploading(false);
+    }
+  }
+
+  async function savePrimaryPosition() {
+    if (!authUserId || !selectedPosition) return;
+
+    try {
+      setSavingPosition(true);
+
+      const { error } = await supabase
+        .from("players")
+        .update({ position: selectedPosition })
+        .eq("user_id", authUserId);
+
+      if (error) throw error;
+
+      setPlayer((prev) =>
+        prev
+          ? {
+              ...prev,
+              position: selectedPosition,
+            }
+          : prev
+      );
+
+      window.dispatchEvent(new Event("pucklytics-player-profile-updated"));
+    } catch (error) {
+      console.error("Error updating position:", error);
+    } finally {
+      setSavingPosition(false);
     }
   }
 
@@ -252,32 +286,65 @@ export default function ProfilePage() {
 
       <section style={sectionStackStyle}>
         <div style={sectionTitleRowStyle}>
-          <h2 style={sectionTitleStyle}>Current Team</h2>
+          <h2 style={sectionTitleStyle}>Player Settings</h2>
         </div>
 
         <div className="glass-panel" style={infoCardStyle}>
-          <div style={teamRowStyle}>
-            <div>
-              <div style={eyebrowStyle}>Selected team</div>
-              <div style={{ fontSize: "1.1rem", fontWeight: 700 }}>
-                {selectedTeam?.name ?? memberships[0]?.name ?? "No team selected"}
+          <div style={{ display: "grid", gap: "0.9rem" }}>
+            <div style={detailRowStyle}>
+              <span style={detailLabelStyle}>Primary Position</span>
+              <div style={positionEditorRowStyle}>
+                <select
+                  value={selectedPosition}
+                  onChange={(event) => setSelectedPosition(event.target.value)}
+                  style={positionSelectStyle}
+                >
+                  {["C", "LW", "RW", "D", "G"].map((option) => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                </select>
+
+                <button
+                  type="button"
+                  onClick={savePrimaryPosition}
+                  disabled={savingPosition || !selectedPosition || selectedPosition === player.position}
+                  style={saveButtonStyle(
+                    savingPosition || !selectedPosition || selectedPosition === player.position
+                  )}
+                >
+                  {savingPosition ? "Saving..." : "Save"}
+                </button>
               </div>
+              <span style={helperInlineStyle}>
+                This updates your main position across your account.
+              </span>
             </div>
 
-            {selectedTeam?.teamLogo ? (
-              <img
-                src={selectedTeam.teamLogo}
-                alt={selectedTeam.name}
-                style={teamLogoStyle}
-              />
-            ) : null}
+            <div style={teamRowStyle}>
+              <div>
+                <div style={eyebrowStyle}>Selected team</div>
+                <div style={{ fontSize: "1.1rem", fontWeight: 700 }}>
+                  {selectedTeam?.name ?? memberships[0]?.name ?? "No team selected"}
+                </div>
+              </div>
+
+              {selectedTeam?.teamLogo ? (
+                <img
+                  src={selectedTeam.teamLogo}
+                  alt={selectedTeam.name}
+                  style={teamLogoStyle}
+                />
+              ) : null}
+            </div>
           </div>
         </div>
       </section>
 
       <section style={sectionStackStyle}>
         <div style={sectionTitleRowStyle}>
-          <h2 style={sectionTitleStyle}>Teams and Leagues</h2>
+          <h2 style={sectionTitleStyle}>Rostered Teams</h2>
         </div>
 
         <div style={{ display: "grid", gap: "0.8rem" }}>
@@ -428,6 +495,49 @@ const uploadButtonStyle: React.CSSProperties = {
   color: "white",
   fontWeight: 700,
   width: "100%",
+};
+
+const positionEditorRowStyle: React.CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "minmax(0, 1fr) auto",
+  gap: "0.65rem",
+  alignItems: "center",
+  marginTop: "0.35rem",
+};
+
+const positionSelectStyle: React.CSSProperties = {
+  width: "100%",
+  minHeight: "44px",
+  borderRadius: "12px",
+  background: "rgba(15,23,42,0.9)",
+  border: "1px solid rgba(148,163,184,0.18)",
+  color: "white",
+  padding: "0.75rem 0.9rem",
+  fontSize: "0.9rem",
+  fontWeight: 600,
+};
+
+function saveButtonStyle(disabled: boolean): React.CSSProperties {
+  return {
+    minHeight: "44px",
+    borderRadius: "12px",
+    padding: "0.75rem 0.95rem",
+    background: disabled
+      ? "rgba(71,85,105,0.4)"
+      : "linear-gradient(135deg, #f97316, #ea580c)",
+    color: "white",
+    fontSize: "0.86rem",
+    fontWeight: 700,
+    opacity: disabled ? 0.72 : 1,
+  };
+}
+
+const helperInlineStyle: React.CSSProperties = {
+  display: "block",
+  marginTop: "0.45rem",
+  color: "var(--text-muted)",
+  fontSize: "0.8rem",
+  lineHeight: 1.4,
 };
 
 const sectionStackStyle: React.CSSProperties = {
