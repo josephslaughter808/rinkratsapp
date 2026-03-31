@@ -137,9 +137,17 @@ export default function DraftPickRail({
               ) : (
                 <>
                   <div style={teamLogoStyle(team?.accent)}>
-                    <span style={{ fontSize: "1.05rem", fontWeight: 800 }}>
-                      {team?.shortName || team?.name?.slice(0, 3) || "TM"}
-                    </span>
+                    {team?.logoUrl ? (
+                      <img
+                        src={team.logoUrl}
+                        alt={team.name}
+                        style={{ width: 26, height: 26, objectFit: "contain" }}
+                      />
+                    ) : (
+                      <span style={{ fontSize: "1.05rem", fontWeight: 800 }}>
+                        {team?.shortName || team?.name?.slice(0, 3) || "TM"}
+                      </span>
+                    )}
                   </div>
                   <div style={teamNameUnderStyle}>{team?.name}</div>
                 </>

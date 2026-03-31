@@ -34,6 +34,8 @@ export default function DraftBoard({
   const getPlayer = (playerId: string | null) =>
     players.find((player) => player.id === playerId);
 
+  const rosterAssignments = useMemoRosterAssignments(picks, teams, players, slotPositions);
+
   return (
     <div style={boardShellStyle}>
       <div style={boardScrollStyle}>
@@ -121,11 +123,9 @@ export default function DraftBoard({
                     </div>
                   </div>,
                   ...teams.map((team) => {
-                    const teamPicks = picks
-                      .filter((pick) => pick.teamId === team.id && pick.playerId)
-                      .sort((a, b) => a.overall - b.overall);
-                    const pick = teamPicks[rosterIndex];
-                    const player = getPlayer(pick?.playerId || null);
+                    const assignment = rosterAssignments[team.id]?.[rosterIndex] ?? null;
+                    const pick = assignment?.pick;
+                    const player = assignment?.player ?? null;
                     const isYourPick = pick?.overall === yourNextPickOverall;
 
                     return (
@@ -156,6 +156,81 @@ export default function DraftBoard({
         </div>
       </div>
     </div>
+  );
+}
+
+function useMemoRosterAssignments(
+  picks: DraftPick[],
+  teams: Team[],
+  players: DraftPlayer[],
+  slotPositions: string[]
+) {
+  const assignments: Record<string, Array<{ pick: DraftPick; player: DraftPlayer } | null>> = {};
+
+  for (const team of teams) {
+    const openSlots = slotPositions.map((slotLabel) => ({
+      slotLabel,
+      value: null as { pick: DraftPick; player: DraftPlayer } | null,
+    }));
+
+    const teamEntries = picks
+      .filter((pick) => pick.teamId === team.id && pick.playerId)
+      .sort((a, b) => a.overall - b.overall)
+      .map((pick) => ({
+        pick,
+        player: players.find((player) => player.id === pick.playerId) || null,
+      }))
+      .filter(
+        (entry): entry is { pick: DraftPick; player: DraftPlayer } => Boolean(entry.player)
+      );
+
+    for (const entry of teamEntries) {
+      const primaryIndex = findBestRosterSlot(openSlots, entry.player.position);
+      if (primaryIndex !== -1) {
+        openSlots[primaryIndex].value = entry;
+        continue;
+      }
+
+      const secondaryIndex = (entry.player.secondaryPositions ?? [])
+        .map((position) => findBestRosterSlot(openSlots, position))
+        .find((index) => index !== -1);
+
+      if (secondaryIndex !== undefined && secondaryIndex !== -1) {
+        openSlots[secondaryIndex].value = entry;
+        continue;
+      }
+
+      const fallbackIndex = openSlots.findIndex((slot) => slot.value === null);
+      if (fallbackIndex !== -1) {
+        openSlots[fallbackIndex].value = entry;
+      }
+    }
+
+    assignments[team.id] = openSlots.map((slot) => slot.value);
+  }
+
+  return assignments;
+}
+
+function findBestRosterSlot(
+  openSlots: Array<{ slotLabel: string; value: { pick: DraftPick; player: DraftPlayer } | null }>,
+  position: DraftPlayer["position"]
+) {
+  const matchers =
+    position === "C"
+      ? ["C"]
+      : position === "LW"
+        ? ["LW"]
+        : position === "RW"
+          ? ["RW"]
+          : position === "D"
+            ? ["LD", "RD"]
+            : ["G"];
+
+  return openSlots.findIndex(
+    (slot) =>
+      slot.value === null &&
+      matchers.some((matcher) => slot.slotLabel.startsWith(matcher))
   );
 }
 

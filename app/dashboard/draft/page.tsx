@@ -81,6 +81,25 @@ type TeamRow = {
   league_id: string | null;
 };
 
+type ScoutSeasonRow = {
+  id?: string;
+  season: string;
+  goals: number | null;
+  assists: number | null;
+  points: number | null;
+  pim: number | null;
+  team_id: string | null;
+};
+
+type ScoutClipRow = {
+  id: string;
+  game_id: string;
+  url: string;
+  timestamp_seconds: number | null;
+  description: string | null;
+  created_at: string | null;
+};
+
 const teamAccentPalette = [
   "#f97316",
   "#3b82f6",
@@ -104,6 +123,12 @@ export default function DraftRoomPage() {
   const [draftStatePicks, setDraftStatePicks] = useState<DraftPick[]>(mockDraftPicks);
   const [draftPlayersState, setDraftPlayersState] = useState<DraftPlayer[]>(mockDraftPlayers);
   const [teamsState, setTeamsState] = useState<Team[]>(mockTeams);
+  const [selectedScoutPlayer, setSelectedScoutPlayer] = useState<DraftPlayer | null>(null);
+  const [scoutLoading, setScoutLoading] = useState(false);
+  const [scoutData, setScoutData] = useState<{
+    seasons: Array<ScoutSeasonRow & { teamName: string }>;
+    clips: ScoutClipRow[];
+  }>({ seasons: [], clips: [] });
   const [pickDurationSeconds, setPickDurationSeconds] = useState<number>(
     mockDraftConfig.pickDurationSeconds
   );
@@ -170,6 +195,64 @@ export default function DraftRoomPage() {
         return a.name.localeCompare(b.name);
       })[0]?.id;
   }, [draftPlayersState, draftedPlayerIds]);
+
+  async function openScoutPlayer(player: DraftPlayer) {
+    setSelectedScoutPlayer(player);
+    setScoutLoading(true);
+
+    if (!isUuid(player.id)) {
+      setScoutData({
+        seasons: [
+          {
+            season: "Preview",
+            goals: Math.max(0, Math.floor(player.lastSeasonPoints / 2)),
+            assists: Math.max(0, player.lastSeasonPoints - Math.floor(player.lastSeasonPoints / 2)),
+            points: player.lastSeasonPoints,
+            pim: 0,
+            team_id: null,
+            teamName: player.previousTeam,
+          },
+        ],
+        clips: [],
+      });
+      setScoutLoading(false);
+      return;
+    }
+
+    const [seasonResult, clipResult] = await Promise.all([
+      supabase
+        .from("season_stats")
+        .select("id, season, goals, assists, points, pim, team_id")
+        .eq("player_id", player.id)
+        .order("season", { ascending: false }),
+      supabase
+        .from("video_clips")
+        .select("id, game_id, url, timestamp_seconds, description, created_at")
+        .eq("player_id", player.id)
+        .order("created_at", { ascending: false })
+        .limit(6),
+    ]);
+
+    const seasonRows = (seasonResult.data ?? []) as ScoutSeasonRow[];
+    const teamIds = Array.from(new Set(seasonRows.map((row) => row.team_id).filter(Boolean))) as string[];
+    const teamLookup =
+      teamIds.length > 0
+        ? await supabase.from("teams").select("id, name").in("id", teamIds)
+        : { data: [] as Array<{ id: string; name: string }> };
+
+    const teamsById = Object.fromEntries(
+      ((teamLookup.data ?? []) as Array<{ id: string; name: string }>).map((team) => [team.id, team.name])
+    );
+
+    setScoutData({
+      seasons: seasonRows.map((row) => ({
+        ...row,
+        teamName: row.team_id ? teamsById[row.team_id] ?? "Team" : "Unassigned",
+      })),
+      clips: (clipResult.data ?? []) as ScoutClipRow[],
+    });
+    setScoutLoading(false);
+  }
 
   const pickMarkers = useMemo(() => {
     if (!currentPick) {
@@ -507,6 +590,7 @@ export default function DraftRoomPage() {
             onDraftPlayer={(playerId) => void handleDraftPlayer(playerId)}
             canDraft={canDraftForCurrentPick}
             pickMarkers={pickMarkers}
+            onSelectPlayer={(player) => void openScoutPlayer(player)}
           />
         )}
         {activeTab === "queue" && (
@@ -532,6 +616,107 @@ export default function DraftRoomPage() {
           <RostersTab teams={teamsState} picks={draftStatePicks} players={draftPlayersState} />
         )}
       </div>
+
+      {selectedScoutPlayer ? (
+        <div style={scoutOverlayStyle} onClick={() => setSelectedScoutPlayer(null)}>
+          <div
+            className="glass-panel"
+            style={scoutSheetStyle}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", gap: "0.8rem", alignItems: "start" }}>
+              <div style={{ display: "flex", gap: "0.8rem", minWidth: 0 }}>
+                <img
+                  src={
+                    selectedScoutPlayer.profileUrl ||
+                    `https://api.dicebear.com/9.x/adventurer-neutral/svg?seed=${encodeURIComponent(selectedScoutPlayer.name)}`
+                  }
+                  alt={selectedScoutPlayer.name}
+                  style={scoutAvatarStyle}
+                />
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ color: "var(--accent-light)", fontSize: "0.76rem", textTransform: "uppercase" }}>
+                    Draft Scouting
+                  </div>
+                  <h2 style={{ fontSize: "1.35rem", marginTop: "0.2rem" }}>{selectedScoutPlayer.name}</h2>
+                  <div style={{ color: "var(--text-muted)", marginTop: "0.25rem" }}>
+                    #{selectedScoutPlayer.number} • {selectedScoutPlayer.position} • {selectedScoutPlayer.tier} • {selectedScoutPlayer.shoots}
+                  </div>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedScoutPlayer(null)}
+                style={scoutCloseStyle}
+              >
+                Done
+              </button>
+            </div>
+
+            {scoutLoading ? (
+              <div style={{ padding: "1rem 0", color: "var(--text-muted)" }}>Loading player history...</div>
+            ) : (
+              <>
+                <section style={{ marginTop: "1rem" }}>
+                  <div style={{ color: "var(--accent-light)", marginBottom: "0.45rem" }}>Past Seasons</div>
+                  <div style={{ display: "grid", gap: "0.6rem" }}>
+                    {scoutData.seasons.length ? (
+                      scoutData.seasons.map((season) => (
+                        <div key={`${season.season}-${season.team_id ?? "team"}`} style={scoutCardStyle}>
+                          <div style={{ display: "flex", justifyContent: "space-between", gap: "0.8rem", alignItems: "center" }}>
+                            <div>
+                              <div style={{ fontWeight: 700 }}>{season.teamName}</div>
+                              <div style={{ color: "var(--text-muted)", fontSize: "0.82rem", marginTop: "0.18rem" }}>
+                                {season.season.replace(/_(?:peaks|rinkrats)$/i, "")}
+                              </div>
+                            </div>
+                            <div style={seasonStatGridStyle}>
+                              <span>G {season.goals ?? 0}</span>
+                              <span>A {season.assists ?? 0}</span>
+                              <span>PTS {season.points ?? 0}</span>
+                              <span>PIM {season.pim ?? 0}</span>
+                            </div>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div style={scoutEmptyStyle}>No season stats found for this player yet.</div>
+                    )}
+                  </div>
+                </section>
+
+                <section style={{ marginTop: "1rem" }}>
+                  <div style={{ color: "var(--accent-light)", marginBottom: "0.45rem" }}>Highlights</div>
+                  <div style={{ display: "grid", gap: "0.6rem" }}>
+                    {scoutData.clips.length ? (
+                      scoutData.clips.map((clip) => (
+                        <a
+                          key={clip.id}
+                          href={clip.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          style={scoutCardStyle}
+                        >
+                          <div style={{ fontWeight: 700 }}>{clip.description || "Player highlight"}</div>
+                          <div style={{ color: "var(--text-muted)", fontSize: "0.82rem", marginTop: "0.2rem" }}>
+                            {clip.timestamp_seconds !== null
+                              ? `Watch from ${formatTimestamp(clip.timestamp_seconds)}`
+                              : "Open clip"}
+                          </div>
+                        </a>
+                      ))
+                    ) : (
+                      <div style={scoutEmptyStyle}>
+                        No linked highlights yet. Once captains tag clips, they will show up here.
+                      </div>
+                    )}
+                  </div>
+                </section>
+              </>
+            )}
+          </div>
+        </div>
+      ) : null}
 
       <nav
         style={{
@@ -596,7 +781,7 @@ function mapLiveTeam(team: TeamRow, accent: string): Team {
     record: "",
     captain: team.name,
     assistant: "",
-    logoUrl: team.logo_url,
+    logoUrl: hasRealTeamLogo(team.logo_url) ? team.logo_url : null,
   };
 }
 
@@ -649,6 +834,21 @@ function getCurrentTeamName(teamId: string | undefined, teams: Team[]) {
   return teams.find((team) => team.id === teamId)?.name ?? getTeam(teamId || "")?.name;
 }
 
+function isUuid(value: string) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+}
+
+function formatTimestamp(totalSeconds: number) {
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}:${String(seconds).padStart(2, "0")}`;
+}
+
+function hasRealTeamLogo(value: string | null) {
+  if (!value) return false;
+  return !value.includes("via.placeholder.com");
+}
+
 function levelSortValue(level: DraftPlayer["tier"]) {
   const order: Record<DraftPlayer["tier"], number> = {
     E: 6,
@@ -661,3 +861,67 @@ function levelSortValue(level: DraftPlayer["tier"]) {
 
   return order[level] ?? 0;
 }
+
+const scoutOverlayStyle: React.CSSProperties = {
+  position: "fixed",
+  inset: 0,
+  background: "rgba(2,6,23,0.72)",
+  zIndex: 140,
+  display: "flex",
+  alignItems: "flex-end",
+  justifyContent: "center",
+  padding: "1rem 0.75rem calc(6rem + var(--safe-bottom))",
+};
+
+const scoutSheetStyle: React.CSSProperties = {
+  width: "100%",
+  maxWidth: "520px",
+  borderRadius: "24px",
+  padding: "1rem",
+  maxHeight: "82vh",
+  overflowY: "auto",
+};
+
+const scoutAvatarStyle: React.CSSProperties = {
+  width: "68px",
+  height: "68px",
+  borderRadius: "50%",
+  objectFit: "cover",
+  border: "2px solid rgba(148,163,184,0.18)",
+  background: "rgba(255,255,255,0.08)",
+};
+
+const scoutCloseStyle: React.CSSProperties = {
+  minHeight: "40px",
+  padding: "0.6rem 0.85rem",
+  borderRadius: "999px",
+  background: "rgba(59,130,246,0.16)",
+  color: "#bfdbfe",
+  fontWeight: 700,
+};
+
+const scoutCardStyle: React.CSSProperties = {
+  borderRadius: "16px",
+  border: "1px solid rgba(148,163,184,0.14)",
+  background: "rgba(7,17,31,0.72)",
+  padding: "0.85rem 0.9rem",
+  color: "white",
+};
+
+const scoutEmptyStyle: React.CSSProperties = {
+  borderRadius: "16px",
+  border: "1px solid rgba(148,163,184,0.14)",
+  background: "rgba(7,17,31,0.48)",
+  padding: "0.9rem",
+  color: "var(--text-muted)",
+};
+
+const seasonStatGridStyle: React.CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "repeat(2, auto)",
+  gap: "0.35rem 0.8rem",
+  color: "var(--text-muted)",
+  fontSize: "0.78rem",
+  fontWeight: 700,
+  textAlign: "right",
+};

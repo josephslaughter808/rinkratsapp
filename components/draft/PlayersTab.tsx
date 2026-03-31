@@ -11,6 +11,7 @@ export default function PlayersTab({
   onDraftPlayer,
   canDraft,
   pickMarkers,
+  onSelectPlayer,
 }: {
   players: DraftPlayer[];
   queuedPlayerIds: string[];
@@ -23,6 +24,7 @@ export default function PlayersTab({
     round: number;
     index: number;
   }>;
+  onSelectPlayer: (player: DraftPlayer) => void;
 }) {
   const [positionFilter, setPositionFilter] = useState<string>("All");
   const [tierFilter, setTierFilter] = useState<string>("All");
@@ -168,13 +170,17 @@ export default function PlayersTab({
                   />
                 </div>
 
-                <div style={playerCellStyle}>
+                <button
+                  type="button"
+                  onClick={() => onSelectPlayer(player)}
+                  style={playerCellButtonStyle}
+                >
                   <div style={playerNameStyle}>{player.name}</div>
                   <div style={playerSublineStyle}>
                     <span>#{player.number}</span>
                     <PositionBadge position={player.position} />
                   </div>
-                </div>
+                </button>
 
                 <div style={statValueCellStyle}>{formatLevel(player.tier)}</div>
                 <div style={statValueCellStyle}>{player.lastSeasonPoints}</div>
@@ -185,7 +191,14 @@ export default function PlayersTab({
 
                 <div style={queueCellStyle}>
                   <button
-                    onClick={() => (canDraft ? onDraftPlayer(player.id) : onToggleQueue(player.id))}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      if (canDraft) {
+                        onDraftPlayer(player.id);
+                      } else {
+                        onToggleQueue(player.id);
+                      }
+                    }}
                     style={queueButtonStyle(isQueued)}
                   >
                     {canDraft ? "Draft" : "Queue"}
@@ -340,6 +353,15 @@ const avatarStyle: React.CSSProperties = {
 
 const playerCellStyle: React.CSSProperties = {
   minWidth: 0,
+};
+
+const playerCellButtonStyle: React.CSSProperties = {
+  ...playerCellStyle,
+  background: "transparent",
+  border: "none",
+  padding: 0,
+  textAlign: "left",
+  cursor: "pointer",
 };
 
 const playerNameStyle: React.CSSProperties = {

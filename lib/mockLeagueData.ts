@@ -88,6 +88,7 @@ export type DraftPlayer = {
   age: number;
   number: number;
   position: "C" | "LW" | "RW" | "D" | "G";
+  secondaryPositions?: Array<"C" | "LW" | "RW" | "D" | "G">;
   shoots: "L" | "R";
   tier: "R" | "D" | "C" | "B" | "A" | "E";
   previousTeam: string;
