@@ -4,13 +4,14 @@ import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { useTeam } from "@/context/TeamContext";
 
-type FeedPostRow = {
+type FeedScope = "team" | "league";
+
+type FeedPost = {
   id: string;
-  team_id: string;
-  author_player_id: string;
-  post_type: "announcement" | "highlight" | "survey";
+  scope: FeedScope;
   title: string;
   body: string;
+  post_type: "announcement" | "highlight" | "survey";
   attachment_url: string | null;
   poll_options: string[] | null;
   created_at: string | null;
@@ -21,51 +22,104 @@ type FeedPostRow = {
   } | null;
 };
 
-const leadershipRoles = new Set(["captain", "assistant_captain"]);
+type LeagueRow = {
+  id: string;
+  name: string;
+  season: string | null;
+};
+
+const teamPostingRoles = new Set(["captain", "assistant_captain"]);
+const leaguePostingRoles = new Set(["captain", "commissioner"]);
 
 export default function FeedPage() {
   const { selectedTeam } = useTeam();
   const activeTeam = selectedTeam;
-  const canPost = leadershipRoles.has(activeTeam?.role ?? "");
 
+  const [activeScope, setActiveScope] = useState<FeedScope>("team");
   const [loading, setLoading] = useState(true);
-  const [needsSetup, setNeedsSetup] = useState(false);
+  const [needsSetup, setNeedsSetup] = useState<FeedScope | null>(null);
   const [error, setError] = useState("");
-  const [posts, setPosts] = useState<FeedPostRow[]>([]);
-  const [postType, setPostType] = useState<FeedPostRow["post_type"]>("announcement");
+  const [leagueInfo, setLeagueInfo] = useState<LeagueRow | null>(null);
+  const [posts, setPosts] = useState<FeedPost[]>([]);
+  const [postType, setPostType] = useState<FeedPost["post_type"]>("announcement");
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [attachmentUrl, setAttachmentUrl] = useState("");
   const [surveyOptions, setSurveyOptions] = useState("Yes\nNo");
   const [saving, setSaving] = useState(false);
 
+  const canPost = useMemo(() => {
+    if (!activeTeam) {
+      return false;
+    }
+    return activeScope === "league"
+      ? leaguePostingRoles.has(activeTeam.role ?? "")
+      : teamPostingRoles.has(activeTeam.role ?? "");
+  }, [activeScope, activeTeam]);
+
+  useEffect(() => {
+    if (!activeTeam?.leagueId) {
+      return;
+    }
+    const teamMember = activeTeam;
+    const activeState = { current: true };
+
+    async function loadLeagueInfo() {
+      const result = await supabase
+        .from("leagues")
+        .select("id, name, season")
+        .eq("id", teamMember.leagueId)
+        .maybeSingle();
+
+      if (!activeState.current) {
+        return;
+      }
+
+      setLeagueInfo((result.data as LeagueRow | null) ?? null);
+    }
+
+    loadLeagueInfo();
+
+    return () => {
+      activeState.current = false;
+    };
+  }, [activeTeam]);
+
   useEffect(() => {
     if (!activeTeam) {
       return;
     }
     const teamMember = activeTeam;
-
     const activeState = { current: true };
 
     async function loadFeed() {
       setLoading(true);
       setError("");
-      setNeedsSetup(false);
+      setNeedsSetup(null);
 
-      const result = await supabase
-        .from("team_feed_posts")
-        .select(
-          "id, team_id, author_player_id, post_type, title, body, attachment_url, poll_options, created_at, author:players!team_feed_posts_author_player_id_fkey(id, name, profile_pic_url)"
-        )
-        .eq("team_id", teamMember.id)
-        .order("created_at", { ascending: false });
+      const result =
+        activeScope === "league"
+          ? await supabase
+              .from("league_feed_posts")
+              .select(
+                "id, league_id, author_player_id, post_type, title, body, attachment_url, poll_options, created_at, author:players!league_feed_posts_author_player_id_fkey(id, name, profile_pic_url)"
+              )
+              .eq("league_id", teamMember.leagueId ?? "")
+              .order("created_at", { ascending: false })
+          : await supabase
+              .from("team_feed_posts")
+              .select(
+                "id, team_id, author_player_id, post_type, title, body, attachment_url, poll_options, created_at, author:players!team_feed_posts_author_player_id_fkey(id, name, profile_pic_url)"
+              )
+              .eq("team_id", teamMember.id)
+              .order("created_at", { ascending: false });
 
       if (!activeState.current) {
         return;
       }
 
       if (result.error?.code === "PGRST205") {
-        setNeedsSetup(true);
+        setNeedsSetup(activeScope);
         setPosts([]);
         setLoading(false);
         return;
@@ -78,7 +132,11 @@ export default function FeedPage() {
         return;
       }
 
-      setPosts(normalizeFeedRows(result.data ?? []));
+      setPosts(
+        activeScope === "league"
+          ? normalizeLeagueFeedRows((result.data ?? []) as Array<Record<string, unknown>>)
+          : normalizeTeamFeedRows((result.data ?? []) as Array<Record<string, unknown>>)
+      );
       setLoading(false);
     }
 
@@ -86,7 +144,7 @@ export default function FeedPage() {
     return () => {
       activeState.current = false;
     };
-  }, [activeTeam]);
+  }, [activeScope, activeTeam]);
 
   const parsedSurveyOptions = useMemo(() => {
     return surveyOptions
@@ -103,34 +161,58 @@ export default function FeedPage() {
     setSaving(true);
     setError("");
 
-    const insertResult = await supabase
-      .from("team_feed_posts")
-      .insert({
-        team_id: activeTeam.id,
-        author_player_id: activeTeam.player_id,
-        post_type: postType,
-        title: title.trim(),
-        body: body.trim(),
-        attachment_url: attachmentUrl.trim() || null,
-        poll_options: postType === "survey" ? parsedSurveyOptions : null,
-      })
-      .select(
-        "id, team_id, author_player_id, post_type, title, body, attachment_url, poll_options, created_at, author:players!team_feed_posts_author_player_id_fkey(id, name, profile_pic_url)"
-      )
-      .single();
+    const result =
+      activeScope === "league"
+        ? await supabase
+            .from("league_feed_posts")
+            .insert({
+              league_id: activeTeam.leagueId,
+              author_player_id: activeTeam.player_id,
+              post_type: postType,
+              title: title.trim(),
+              body: body.trim(),
+              attachment_url: attachmentUrl.trim() || null,
+              poll_options: postType === "survey" ? parsedSurveyOptions : null,
+            })
+            .select(
+              "id, league_id, author_player_id, post_type, title, body, attachment_url, poll_options, created_at, author:players!league_feed_posts_author_player_id_fkey(id, name, profile_pic_url)"
+            )
+            .single()
+        : await supabase
+            .from("team_feed_posts")
+            .insert({
+              team_id: activeTeam.id,
+              author_player_id: activeTeam.player_id,
+              post_type: postType,
+              title: title.trim(),
+              body: body.trim(),
+              attachment_url: attachmentUrl.trim() || null,
+              poll_options: postType === "survey" ? parsedSurveyOptions : null,
+            })
+            .select(
+              "id, team_id, author_player_id, post_type, title, body, attachment_url, poll_options, created_at, author:players!team_feed_posts_author_player_id_fkey(id, name, profile_pic_url)"
+            )
+            .single();
 
-    if (insertResult.error) {
-      if (insertResult.error.code === "PGRST205") {
-        setNeedsSetup(true);
+    if (result.error) {
+      if (result.error.code === "PGRST205") {
+        setNeedsSetup(activeScope);
       } else {
-        setError(insertResult.error.message);
+        setError(result.error.message);
       }
       setSaving(false);
       return;
     }
 
-    const normalizedRow = normalizeFeedRows(insertResult.data ? [insertResult.data] : [])[0];
-    setPosts((current) => (normalizedRow ? [normalizedRow, ...current] : current));
+    const normalized =
+      activeScope === "league"
+        ? normalizeLeagueFeedRows(result.data ? [result.data as Record<string, unknown>] : [])
+        : normalizeTeamFeedRows(result.data ? [result.data as Record<string, unknown>] : []);
+
+    if (normalized[0]) {
+      setPosts((current) => [normalized[0], ...current]);
+    }
+
     setTitle("");
     setBody("");
     setAttachmentUrl("");
@@ -152,12 +234,27 @@ export default function FeedPage() {
   return (
     <main className="page-shell" style={{ paddingBottom: "6rem" }}>
       <section className="glass-panel" style={{ padding: "1.1rem", marginBottom: "0.9rem" }}>
-        <div style={{ color: "var(--accent-light)", marginBottom: "0.35rem" }}>Team Feed</div>
-        <h1 style={{ fontSize: "1.8rem", marginBottom: "0.35rem" }}>{activeTeam.name} updates</h1>
+        <div style={{ color: "var(--accent-light)", marginBottom: "0.35rem" }}>Feed</div>
+        <h1 style={{ fontSize: "1.8rem", marginBottom: "0.35rem" }}>
+          {activeScope === "league" ? leagueInfo?.name ?? "League feed" : `${activeTeam.name} updates`}
+        </h1>
         <p style={{ color: "var(--text-muted)", lineHeight: 1.5 }}>
-          Captains and assistant captains can publish announcements, highlight notes, and team surveys
-          here for the room to read all season.
+          Switch between your team feed and the league-wide announcement feed. Team feed is for roster
+          updates. League feed is readable by everyone, with posting reserved for captains and commissioners.
         </p>
+
+        <div style={scopeToggleRowStyle}>
+          <button type="button" onClick={() => setActiveScope("team")} style={scopeButtonStyle(activeScope === "team")}>
+            Team Feed
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveScope("league")}
+            style={scopeButtonStyle(activeScope === "league")}
+          >
+            League Feed
+          </button>
+        </div>
       </section>
 
       {needsSetup ? (
@@ -166,8 +263,9 @@ export default function FeedPage() {
             Feed setup needed
           </div>
           <p style={{ color: "var(--text-muted)", lineHeight: 1.5 }}>
-            The live database does not have `team_feed_posts` yet. Run the new migration in Supabase,
-            then this tab will switch from setup mode to the real feed immediately.
+            {needsSetup === "league"
+              ? "The live database still needs the new league feed table. Run the latest SQL migration and this view will switch on."
+              : "The live database does not have `team_feed_posts` yet. Run the feed migration in Supabase and this tab will switch to the real feed immediately."}
           </p>
         </section>
       ) : null}
@@ -180,7 +278,9 @@ export default function FeedPage() {
 
       {canPost ? (
         <section className="glass-panel" style={{ padding: "1rem", marginBottom: "0.9rem" }}>
-          <div style={{ color: "var(--accent-light)", marginBottom: "0.35rem" }}>New post</div>
+          <div style={{ color: "var(--accent-light)", marginBottom: "0.35rem" }}>
+            {activeScope === "league" ? "New league post" : "New team post"}
+          </div>
           <div style={fieldStackStyle}>
             <div style={chipRowStyle}>
               {(["announcement", "highlight", "survey"] as const).map((option) => (
@@ -203,7 +303,9 @@ export default function FeedPage() {
                   ? "Highlight title"
                   : postType === "survey"
                     ? "Survey question"
-                    : "Announcement title"
+                    : activeScope === "league"
+                      ? "League announcement title"
+                      : "Announcement title"
               }
               style={inputStyle}
             />
@@ -233,8 +335,8 @@ export default function FeedPage() {
               />
             ) : null}
 
-            <button type="button" onClick={handleSubmitPost} disabled={saving || needsSetup} style={publishButtonStyle}>
-              {saving ? "Posting..." : "Publish Post"}
+            <button type="button" onClick={handleSubmitPost} disabled={saving || Boolean(needsSetup)} style={publishButtonStyle}>
+              {saving ? "Posting..." : activeScope === "league" ? "Publish to League" : "Publish to Team"}
             </button>
           </div>
         </section>
@@ -242,7 +344,9 @@ export default function FeedPage() {
         <section className="glass-panel" style={{ padding: "1rem", marginBottom: "0.9rem" }}>
           <div style={{ color: "var(--accent-light)", marginBottom: "0.35rem" }}>Posting access</div>
           <p style={{ color: "var(--text-muted)", lineHeight: 1.5 }}>
-            This tab is read-only for players. Captains and assistant captains can publish updates.
+            {activeScope === "league"
+              ? "League feed is read-only for players. Only captains and commissioners can post."
+              : "This tab is read-only for players. Captains and assistant captains can publish team updates."}
           </p>
         </section>
       )}
@@ -254,7 +358,9 @@ export default function FeedPage() {
           </div>
         ) : posts.length === 0 ? (
           <div className="glass-panel" style={{ padding: "1rem", color: "var(--text-muted)" }}>
-            No posts yet. Captains can publish the first update here.
+            {activeScope === "league"
+              ? "No league announcements yet."
+              : "No posts yet. Captains can publish the first update here."}
           </div>
         ) : (
           posts.map((post) => (
@@ -270,19 +376,17 @@ export default function FeedPage() {
                   <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", alignItems: "center" }}>
                     <span style={feedTypePillStyle(post.post_type)}>{labelForPostType(post.post_type)}</span>
                     <span style={{ color: "var(--accent-light)", fontSize: "0.82rem" }}>
-                      {post.author?.name || "Team leadership"}
+                      {post.author?.name || "Leadership"}
+                    </span>
+                    <span style={scopePillStyle(post.scope)}>
+                      {post.scope === "league" ? leagueInfo?.name ?? "League" : activeTeam.name}
                     </span>
                   </div>
                   <h2 style={{ fontSize: "1.2rem", marginTop: "0.4rem", lineHeight: 1.2 }}>{post.title}</h2>
                   <p style={{ color: "var(--text-muted)", lineHeight: 1.55, marginTop: "0.5rem" }}>{post.body}</p>
 
                   {post.attachment_url ? (
-                    <a
-                      href={post.attachment_url}
-                      target="_blank"
-                      rel="noreferrer"
-                      style={attachmentLinkStyle}
-                    >
+                    <a href={post.attachment_url} target="_blank" rel="noreferrer" style={attachmentLinkStyle}>
                       Open linked item
                     </a>
                   ) : null}
@@ -310,27 +414,61 @@ export default function FeedPage() {
   );
 }
 
-function normalizeFeedRows(rows: Array<Record<string, unknown>>) {
+function normalizeTeamFeedRows(rows: Array<Record<string, unknown>>): FeedPost[] {
   return rows.map((row) => {
     const authorValue = row.author;
     const author = Array.isArray(authorValue) ? authorValue[0] : authorValue;
 
     return {
-      ...(row as Omit<FeedPostRow, "author" | "poll_options">),
+      id: String(row.id ?? ""),
+      scope: "team",
+      title: String(row.title ?? ""),
+      body: String(row.body ?? ""),
+      post_type: (row.post_type as FeedPost["post_type"]) ?? "announcement",
+      attachment_url: (row.attachment_url as string | null) ?? null,
       poll_options: Array.isArray(row.poll_options) ? (row.poll_options as string[]) : null,
-      author: author && typeof author === "object"
-        ? {
-            id: String((author as Record<string, unknown>).id ?? ""),
-            name: ((author as Record<string, unknown>).name as string | null) ?? null,
-            profile_pic_url:
-              ((author as Record<string, unknown>).profile_pic_url as string | null) ?? null,
-          }
-        : null,
-    } satisfies FeedPostRow;
+      created_at: (row.created_at as string | null) ?? null,
+      author:
+        author && typeof author === "object"
+          ? {
+              id: String((author as Record<string, unknown>).id ?? ""),
+              name: ((author as Record<string, unknown>).name as string | null) ?? null,
+              profile_pic_url:
+                ((author as Record<string, unknown>).profile_pic_url as string | null) ?? null,
+            }
+          : null,
+    };
   });
 }
 
-function labelForPostType(type: FeedPostRow["post_type"]) {
+function normalizeLeagueFeedRows(rows: Array<Record<string, unknown>>): FeedPost[] {
+  return rows.map((row) => {
+    const authorValue = row.author;
+    const author = Array.isArray(authorValue) ? authorValue[0] : authorValue;
+
+    return {
+      id: String(row.id ?? ""),
+      scope: "league",
+      title: String(row.title ?? ""),
+      body: String(row.body ?? ""),
+      post_type: (row.post_type as FeedPost["post_type"]) ?? "announcement",
+      attachment_url: (row.attachment_url as string | null) ?? null,
+      poll_options: Array.isArray(row.poll_options) ? (row.poll_options as string[]) : null,
+      created_at: (row.created_at as string | null) ?? null,
+      author:
+        author && typeof author === "object"
+          ? {
+              id: String((author as Record<string, unknown>).id ?? ""),
+              name: ((author as Record<string, unknown>).name as string | null) ?? null,
+              profile_pic_url:
+                ((author as Record<string, unknown>).profile_pic_url as string | null) ?? null,
+            }
+          : null,
+    };
+  });
+}
+
+function labelForPostType(type: FeedPost["post_type"]) {
   if (type === "highlight") return "Highlight";
   if (type === "survey") return "Survey";
   return "Announcement";
@@ -357,7 +495,7 @@ function typeChipStyle(active: boolean): CSSProperties {
   };
 }
 
-function feedTypePillStyle(type: FeedPostRow["post_type"]): CSSProperties {
+function feedTypePillStyle(type: FeedPost["post_type"]): CSSProperties {
   const color =
     type === "survey" ? "#60a5fa" : type === "highlight" ? "#f97316" : "#facc15";
 
@@ -375,6 +513,36 @@ function feedTypePillStyle(type: FeedPostRow["post_type"]): CSSProperties {
   };
 }
 
+function scopeButtonStyle(active: boolean): CSSProperties {
+  return {
+    flex: 1,
+    minHeight: "42px",
+    borderRadius: "999px",
+    border: active ? "1px solid rgba(56,189,248,0.42)" : "1px solid rgba(148,163,184,0.16)",
+    background: active
+      ? "linear-gradient(135deg, rgba(56,189,248,0.16), rgba(14,165,233,0.08))"
+      : "rgba(7,17,31,0.74)",
+    color: active ? "var(--accent-blue)" : "var(--text-muted)",
+    fontWeight: 800,
+  };
+}
+
+function scopePillStyle(scope: FeedScope): CSSProperties {
+  return {
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: "26px",
+    padding: "0.25rem 0.6rem",
+    borderRadius: "999px",
+    border: "1px solid rgba(56,189,248,0.25)",
+    background: scope === "league" ? "rgba(56,189,248,0.16)" : "rgba(59,130,246,0.1)",
+    color: "var(--accent-blue)",
+    fontSize: "0.74rem",
+    fontWeight: 800,
+  };
+}
+
 const fieldStackStyle: CSSProperties = {
   display: "grid",
   gap: "0.75rem",
@@ -384,6 +552,12 @@ const chipRowStyle: CSSProperties = {
   display: "flex",
   gap: "0.55rem",
   flexWrap: "wrap",
+};
+
+const scopeToggleRowStyle: CSSProperties = {
+  display: "flex",
+  gap: "0.6rem",
+  marginTop: "0.95rem",
 };
 
 const inputStyle: CSSProperties = {
