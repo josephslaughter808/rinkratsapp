@@ -29,7 +29,11 @@ type PlayerRow = {
 type TeamRow = {
   id: string;
   name: string;
+  logo_url?: string | null;
 };
+
+const filmStaffRoles = new Set(["captain", "assistant_captain", "film_manager"]);
+const captainRoles = new Set(["captain", "assistant_captain"]);
 
 export default function ChatRoomClient({ roomId }: { roomId: string }) {
   const { selectedTeam } = useTeam();
@@ -49,7 +53,7 @@ export default function ChatRoomClient({ roomId }: { roomId: string }) {
     }
     const teamMember = activeTeam;
 
-    let active = true;
+    const activeState = { current: true };
 
     async function loadRoom() {
       setLoading(true);
@@ -61,11 +65,31 @@ export default function ChatRoomClient({ roomId }: { roomId: string }) {
         .eq("id", roomId)
         .maybeSingle();
 
-      if (!roomResult.data) {
-        if (active) {
+      const nextRoom = roomResult.data as RoomRow | null;
+
+      if (!nextRoom) {
+        if (activeState.current) {
           setError("Chat room not found.");
           setLoading(false);
         }
+        return;
+      }
+
+      if (nextRoom.team_id && nextRoom.team_id !== teamMember.id) {
+        setError("This room belongs to another team.");
+        setLoading(false);
+        return;
+      }
+
+      if (nextRoom.type === "captains" && !captainRoles.has(teamMember.role ?? "")) {
+        setError("Only captains and assistant captains can open this room.");
+        setLoading(false);
+        return;
+      }
+
+      if (nextRoom.type === "film_staff" && !filmStaffRoles.has(teamMember.role ?? "")) {
+        setError("Only captains, assistants, and film managers can open this room.");
+        setLoading(false);
         return;
       }
 
@@ -89,11 +113,11 @@ export default function ChatRoomClient({ roomId }: { roomId: string }) {
           .select("id, room_id, sender_id, message, created_at")
           .eq("room_id", roomId)
           .order("created_at", { ascending: true }),
-        roomResult.data.team_id
+        nextRoom.team_id
           ? supabase
               .from("teams")
-              .select("id, name")
-              .eq("id", roomResult.data.team_id)
+              .select("id, name, logo_url")
+              .eq("id", nextRoom.team_id)
               .maybeSingle()
           : Promise.resolve({ data: null }),
       ]);
@@ -113,11 +137,11 @@ export default function ChatRoomClient({ roomId }: { roomId: string }) {
             .in("id", senderIds)
         : { data: [] as PlayerRow[] };
 
-      if (!active) {
+      if (!activeState.current) {
         return;
       }
 
-      setRoom(roomResult.data as RoomRow);
+      setRoom(nextRoom);
       setMessages((messageResult.data ?? []) as MessageRow[]);
       setTeam((teamResult.data as TeamRow | null) ?? null);
       setPlayersById(
@@ -167,7 +191,7 @@ export default function ChatRoomClient({ roomId }: { roomId: string }) {
       .subscribe();
 
     return () => {
-      active = false;
+      activeState.current = false;
       void supabase.removeChannel(channel);
     };
   }, [activeTeam, roomId]);
@@ -177,12 +201,40 @@ export default function ChatRoomClient({ roomId }: { roomId: string }) {
   }, [messages]);
 
   const roomTitle = useMemo(() => {
+    if (room?.type === "captains") {
+      return `${team?.name ?? activeTeam?.name ?? "Team"} Leadership`;
+    }
+    if (room?.type === "film_staff") {
+      return `${team?.name ?? activeTeam?.name ?? "Team"} Film Room`;
+    }
     if (room?.type === "team") {
       return `${team?.name ?? activeTeam?.name ?? "Team"} Chat`;
     }
-
     return "Chat Room";
   }, [activeTeam?.name, room?.type, team?.name]);
+
+  const messageItems = useMemo(() => {
+    const items: Array<{ kind: "day"; id: string; label: string } | { kind: "message"; message: MessageRow }> = [];
+    let lastDay = "";
+
+    for (const message of messages) {
+      const dayLabel = message.created_at ? formatDayLabel(message.created_at) : "Today";
+      if (dayLabel !== lastDay) {
+        items.push({
+          kind: "day",
+          id: `${dayLabel}-${message.id}`,
+          label: dayLabel,
+        });
+        lastDay = dayLabel;
+      }
+      items.push({
+        kind: "message",
+        message,
+      });
+    }
+
+    return items;
+  }, [messages]);
 
   async function handleSendMessage() {
     if (!activeTeam || !draftMessage.trim()) {
@@ -247,9 +299,20 @@ export default function ChatRoomClient({ roomId }: { roomId: string }) {
         <Link href="/dashboard/chat" style={{ display: "inline-block", marginBottom: "0.7rem" }}>
           Back to chat
         </Link>
-        <div style={{ fontSize: "1.45rem", fontWeight: 700 }}>{roomTitle}</div>
-        <div style={{ color: "var(--accent-light)", marginTop: "0.25rem" }}>
-          {room?.type === "team" ? "Players and team staff" : room?.type ?? "Room"}
+        <div style={{ display: "flex", alignItems: "center", gap: "0.8rem" }}>
+          {team?.logo_url ? (
+            <img src={team.logo_url} alt={team.name} style={headerLogoStyle} />
+          ) : null}
+          <div>
+            <div style={{ fontSize: "1.45rem", fontWeight: 700 }}>{roomTitle}</div>
+            <div style={{ color: "var(--accent-light)", marginTop: "0.25rem" }}>
+              {room?.type === "team"
+                ? "Players and team staff"
+                : room?.type === "captains"
+                  ? "Captains and assistant captains"
+                  : "Captains, assistants, and film staff"}
+            </div>
+          </div>
         </div>
       </div>
 
@@ -275,7 +338,18 @@ export default function ChatRoomClient({ roomId }: { roomId: string }) {
           </div>
         ) : null}
 
-        {messages.map((msg) => {
+        {messageItems.map((item) => {
+          if (item.kind === "day") {
+            return (
+              <div key={item.id} style={dayDividerWrapStyle}>
+                <div style={dayDividerLineStyle} />
+                <div style={dayDividerLabelStyle}>{item.label}</div>
+                <div style={dayDividerLineStyle} />
+              </div>
+            );
+          }
+
+          const msg = item.message;
           const sender = playersById[msg.sender_id ?? ""];
           const isSelf = msg.sender_id === selectedTeam.player_id;
 
@@ -283,24 +357,56 @@ export default function ChatRoomClient({ roomId }: { roomId: string }) {
             <div
               key={msg.id}
               style={{
-                alignSelf: isSelf ? "flex-end" : "stretch",
-                maxWidth: isSelf ? "88%" : "100%",
-                background: isSelf
-                  ? "linear-gradient(135deg, rgba(249,115,22,0.22), rgba(234,88,12,0.18))"
-                  : "rgba(7, 17, 31, 0.78)",
-                padding: "0.9rem",
-                borderRadius: 16,
-                border: "1px solid var(--line)",
+                display: "flex",
+                justifyContent: isSelf ? "flex-end" : "flex-start",
               }}
             >
-              <div style={{ color: "var(--accent-light)", marginBottom: "0.2rem", fontWeight: 700 }}>
-                {sender?.name || "Player"}
-              </div>
-              <div style={{ color: "var(--text)", marginBottom: "0.5rem", whiteSpace: "pre-wrap" }}>
-                {msg.message}
-              </div>
-              <div style={{ color: "var(--text-muted)", fontSize: "0.82rem" }}>
-                {msg.created_at ? formatStamp(msg.created_at) : "Sending..."}
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: isSelf ? "minmax(0,1fr)" : "42px minmax(0,1fr)",
+                  gap: "0.6rem",
+                  alignItems: "end",
+                  maxWidth: "92%",
+                }}
+              >
+                {!isSelf ? (
+                  <img
+                    src={sender?.profile_pic_url || "https://via.placeholder.com/84?text=P"}
+                    alt={sender?.name || "Player"}
+                    style={bubbleAvatarStyle}
+                  />
+                ) : null}
+
+                <div
+                  style={{
+                    justifySelf: isSelf ? "end" : "start",
+                    maxWidth: "100%",
+                    background: isSelf
+                      ? "linear-gradient(135deg, rgba(249,115,22,0.22), rgba(234,88,12,0.18))"
+                      : "rgba(7, 17, 31, 0.78)",
+                    padding: "0.85rem 0.9rem",
+                    borderRadius: 18,
+                    border: "1px solid var(--line)",
+                  }}
+                >
+                  <div
+                    style={{
+                      color: isSelf ? "rgba(255,255,255,0.88)" : "var(--accent-light)",
+                      marginBottom: "0.22rem",
+                      fontWeight: 700,
+                      fontSize: "0.88rem",
+                    }}
+                  >
+                    {isSelf ? "You" : sender?.name || "Player"}
+                  </div>
+                  <div style={{ color: "var(--text)", whiteSpace: "pre-wrap", lineHeight: 1.45 }}>
+                    {msg.message}
+                  </div>
+                  <div style={{ color: "var(--text-muted)", fontSize: "0.74rem", marginTop: "0.45rem" }}>
+                    {msg.created_at ? formatTime(msg.created_at) : "Sending..."}
+                  </div>
+                </div>
               </div>
             </div>
           );
@@ -310,7 +416,7 @@ export default function ChatRoomClient({ roomId }: { roomId: string }) {
 
       <div
         className="glass-panel"
-        style={{ margin: "0 1rem 1rem", padding: "1rem", display: "flex", gap: "0.5rem" }}
+        style={{ margin: "0 1rem 1rem", padding: "0.85rem", display: "flex", gap: "0.55rem" }}
       >
         <textarea
           placeholder="Type a message..."
@@ -320,11 +426,7 @@ export default function ChatRoomClient({ roomId }: { roomId: string }) {
           style={composerStyle}
         />
 
-        <button
-          onClick={handleSendMessage}
-          disabled={!draftMessage.trim()}
-          style={sendButtonStyle}
-        >
+        <button onClick={handleSendMessage} disabled={!draftMessage.trim()} style={sendButtonStyle}>
           Send
         </button>
       </div>
@@ -332,24 +434,81 @@ export default function ChatRoomClient({ roomId }: { roomId: string }) {
   );
 }
 
-function formatStamp(value: string) {
-  return new Date(value).toLocaleString("en-US", {
+function formatDayLabel(value: string) {
+  const date = new Date(value);
+  const today = new Date();
+  const yesterday = new Date();
+  yesterday.setDate(today.getDate() - 1);
+
+  const sameDay = (a: Date, b: Date) =>
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate();
+
+  if (sameDay(date, today)) return "Today";
+  if (sameDay(date, yesterday)) return "Yesterday";
+
+  return date.toLocaleDateString("en-US", {
     month: "short",
     day: "numeric",
+  });
+}
+
+function formatTime(value: string) {
+  return new Date(value).toLocaleString("en-US", {
     hour: "numeric",
     minute: "2-digit",
   });
 }
 
+const headerLogoStyle: CSSProperties = {
+  width: "42px",
+  height: "42px",
+  borderRadius: "14px",
+  objectFit: "contain",
+  background: "rgba(255,255,255,0.06)",
+  padding: "0.2rem",
+};
+
+const bubbleAvatarStyle: CSSProperties = {
+  width: "42px",
+  height: "42px",
+  borderRadius: "50%",
+  objectFit: "cover",
+  border: "1px solid rgba(148,163,184,0.18)",
+  background: "rgba(255,255,255,0.08)",
+};
+
+const dayDividerWrapStyle: CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "minmax(0,1fr) auto minmax(0,1fr)",
+  gap: "0.6rem",
+  alignItems: "center",
+  margin: "0.15rem 0 0.1rem",
+};
+
+const dayDividerLineStyle: CSSProperties = {
+  height: "1px",
+  background: "rgba(148,163,184,0.16)",
+};
+
+const dayDividerLabelStyle: CSSProperties = {
+  color: "var(--text-muted)",
+  fontSize: "0.76rem",
+  fontWeight: 700,
+  textTransform: "uppercase",
+  letterSpacing: "0.08em",
+};
+
 const composerStyle: CSSProperties = {
   flex: 1,
-  padding: "0.9rem",
+  padding: "0.85rem 0.95rem",
   borderRadius: 14,
   border: "1px solid var(--line)",
   background: "rgba(7, 17, 31, 0.7)",
   color: "white",
   resize: "none",
-  minHeight: "52px",
+  minHeight: "50px",
 };
 
 const sendButtonStyle: CSSProperties = {
@@ -358,13 +517,13 @@ const sendButtonStyle: CSSProperties = {
   borderRadius: 14,
   fontWeight: 700,
   color: "white",
-  alignSelf: "stretch",
+  minWidth: "74px",
+  opacity: 1,
 };
 
 const errorStyle: CSSProperties = {
   margin: "1rem 1rem 0",
-  padding: "0.85rem 1rem",
+  padding: "0.9rem 1rem",
   color: "#fecaca",
-  border: "1px solid rgba(239,68,68,0.3)",
-  background: "rgba(127,29,29,0.28)",
+  borderColor: "rgba(248,113,113,0.35)",
 };
