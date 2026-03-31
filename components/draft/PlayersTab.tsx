@@ -114,7 +114,7 @@ export default function PlayersTab({
           <div style={playerHeaderStyle}>PLAYER</div>
           <div style={numberHeaderStyle}>LVL</div>
           <div style={numberHeaderStyle}>PTS</div>
-          <div style={numberHeaderStyle}>HAND</div>
+          <div style={handHeaderStyle}>HAND</div>
           <div style={numberHeaderStyle}>+/-</div>
           <div style={queueHeaderStyle} />
         </div>
@@ -270,6 +270,10 @@ const playerHeaderStyle: React.CSSProperties = {
 
 const numberHeaderStyle: React.CSSProperties = {
   textAlign: "right",
+};
+
+const handHeaderStyle: React.CSSProperties = {
+  textAlign: "center",
 };
 
 const queueHeaderStyle: React.CSSProperties = {
