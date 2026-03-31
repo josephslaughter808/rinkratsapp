@@ -171,6 +171,33 @@ export default function DraftRoomPage() {
       })[0]?.id;
   }, [draftPlayersState, draftedPlayerIds]);
 
+  const pickMarkers = useMemo(() => {
+    if (!currentPick) {
+      return [];
+    }
+
+    const remainingYourPicks = draftStatePicks
+      .filter((pick) => pick.teamId === yourTeamId && !pick.playerId && pick.overall >= currentPick.overall)
+      .sort((a, b) => a.overall - b.overall);
+
+    let removedPlayersBeforeMarker = 0;
+
+    return remainingYourPicks.map((pick, index) => {
+      if (index === 0) {
+        removedPlayersBeforeMarker = pick.overall - currentPick.overall;
+      } else {
+        const previousPick = remainingYourPicks[index - 1];
+        removedPlayersBeforeMarker += pick.overall - previousPick.overall;
+      }
+
+      return {
+        overall: pick.overall,
+        round: pick.round,
+        index: removedPlayersBeforeMarker,
+      };
+    });
+  }, [currentPick, draftStatePicks, yourTeamId]);
+
   const loadLiveDraft = useCallback(async () => {
     if (!selectedTeam?.leagueId) {
       setDraftMode("mock");
@@ -477,6 +504,9 @@ export default function DraftRoomPage() {
             queuedPlayerIds={queuedPlayerIds}
             draftedPlayerIds={draftedPlayerIds}
             onToggleQueue={handleToggleQueue}
+            onDraftPlayer={(playerId) => void handleDraftPlayer(playerId)}
+            canDraft={canDraftForCurrentPick}
+            pickMarkers={pickMarkers}
           />
         )}
         {activeTab === "queue" && (

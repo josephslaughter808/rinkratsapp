@@ -8,16 +8,25 @@ export default function PlayersTab({
   queuedPlayerIds,
   draftedPlayerIds,
   onToggleQueue,
+  onDraftPlayer,
+  canDraft,
+  pickMarkers,
 }: {
   players: DraftPlayer[];
   queuedPlayerIds: string[];
   draftedPlayerIds: string[];
   onToggleQueue: (playerId: string) => void;
+  onDraftPlayer: (playerId: string) => void;
+  canDraft: boolean;
+  pickMarkers: Array<{
+    overall: number;
+    round: number;
+    index: number;
+  }>;
 }) {
   const [positionFilter, setPositionFilter] = useState<string>("All");
   const [tierFilter, setTierFilter] = useState<string>("All");
   const [handFilter, setHandFilter] = useState<string>("All");
-  const yourPickIndex = 2;
 
   const visiblePlayers = players
     .filter((player) => {
@@ -135,14 +144,17 @@ export default function PlayersTab({
 
         {visiblePlayers.map((player, index) => {
           const isQueued = queuedPlayerIds.includes(player.id);
+          const markersAtIndex = pickMarkers.filter((marker) => marker.index === index);
 
           return (
             <div key={player.id} style={{ display: "grid", gap: "0.35rem" }}>
-              {index === yourPickIndex ? (
-                <div style={pickMarkerStyle}>
-                  <span style={pickMarkerTagStyle}>Your Pick (R1,P3)</span>
+              {markersAtIndex.map((marker) => (
+                <div key={`${player.id}-${marker.overall}`} style={pickMarkerStyle}>
+                  <span style={pickMarkerTagStyle}>
+                    Your Pick (R{marker.round},P{marker.overall})
+                  </span>
                 </div>
-              ) : null}
+              ))}
 
               <div style={playerRowStyle}>
                 <div style={avatarCellStyle}>
@@ -173,10 +185,10 @@ export default function PlayersTab({
 
                 <div style={queueCellStyle}>
                   <button
-                    onClick={() => onToggleQueue(player.id)}
+                    onClick={() => (canDraft ? onDraftPlayer(player.id) : onToggleQueue(player.id))}
                     style={queueButtonStyle(isQueued)}
                   >
-                    Queue
+                    {canDraft ? "Draft" : "Queue"}
                   </button>
                 </div>
               </div>
