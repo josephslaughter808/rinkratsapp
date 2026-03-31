@@ -112,10 +112,10 @@ export default function PlayersTab({
         <div style={headerRowStyle}>
           <div style={avatarHeaderStyle} />
           <div style={playerHeaderStyle}>PLAYER</div>
-          <div style={centeredStatHeaderStyle}>LVL</div>
-          <div style={numberHeaderStyle}>PTS</div>
-          <div style={centeredStatHeaderStyle}>HAND</div>
-          <div style={numberHeaderStyle}>+/-</div>
+          <div style={statHeaderStyle}>LVL</div>
+          <div style={statHeaderStyle}>PTS</div>
+          <div style={statHeaderStyle}>HAND</div>
+          <div style={statHeaderStyle}>+/-</div>
           <div style={queueHeaderStyle} />
         </div>
       </div>
@@ -150,10 +150,10 @@ export default function PlayersTab({
                   </div>
                 </div>
 
-                <div style={numberCellStyle}>{formatLevel(player.tier)}</div>
-                <div style={numberCellStyle}>{player.lastSeasonPoints}</div>
-                <div style={numberCellStyle}>{player.shoots}</div>
-                <div style={numberCellStyle}>
+                <div style={statValueCellStyle}>{formatLevel(player.tier)}</div>
+                <div style={statValueCellStyle}>{player.lastSeasonPoints}</div>
+                <div style={statValueCellStyle}>{player.shoots}</div>
+                <div style={statValueCellStyle}>
                   {player.plusMinus > 0 ? `+${player.plusMinus}` : player.plusMinus}
                 </div>
 
@@ -250,7 +250,7 @@ const tableShellStyle: React.CSSProperties = {
 
 const headerRowStyle: React.CSSProperties = {
   display: "grid",
-  gridTemplateColumns: "34px minmax(0, 1.22fr) 32px 40px 40px 48px 72px",
+  gridTemplateColumns: "34px minmax(0, 1.18fr) 30px 34px 36px 42px 68px",
   alignItems: "center",
   gap: "0.125rem",
   padding: "0.45rem 0.35rem 0.35rem",
@@ -268,11 +268,7 @@ const playerHeaderStyle: React.CSSProperties = {
   textAlign: "left",
 };
 
-const numberHeaderStyle: React.CSSProperties = {
-  textAlign: "right",
-};
-
-const centeredStatHeaderStyle: React.CSSProperties = {
+const statHeaderStyle: React.CSSProperties = {
   textAlign: "center",
 };
 
@@ -282,7 +278,7 @@ const queueHeaderStyle: React.CSSProperties = {
 
 const playerRowStyle: React.CSSProperties = {
   display: "grid",
-  gridTemplateColumns: "34px minmax(0, 1.22fr) 32px 40px 40px 48px 72px",
+  gridTemplateColumns: "34px minmax(0, 1.18fr) 30px 34px 36px 42px 68px",
   alignItems: "center",
   gap: "0.125rem",
   minHeight: "50px",
@@ -327,12 +323,11 @@ const playerSublineStyle: React.CSSProperties = {
   fontSize: "0.72rem",
 };
 
-const numberCellStyle: React.CSSProperties = {
-  textAlign: "right",
+const statValueCellStyle: React.CSSProperties = {
+  textAlign: "center",
   color: "rgba(255,255,255,0.78)",
   fontSize: "0.8rem",
   fontWeight: 600,
-  paddingRight: "0",
 };
 
 const queueCellStyle: React.CSSProperties = {
