@@ -108,10 +108,12 @@ export default function PlayersTab({
         </div>
 
         <div style={headerRowStyle}>
-          <div style={rankHeaderStyle}>RK</div>
+          <div style={avatarHeaderStyle} />
           <div style={playerHeaderStyle}>PLAYER</div>
-          <div style={numberHeaderStyle}>ADP</div>
-          <div style={numberHeaderStyle}>PROJ</div>
+          <div style={numberHeaderStyle}>LVL</div>
+          <div style={numberHeaderStyle}>PTS</div>
+          <div style={numberHeaderStyle}>HAND</div>
+          <div style={numberHeaderStyle}>+/-</div>
           <div style={queueHeaderStyle} />
         </div>
       </div>
@@ -130,20 +132,28 @@ export default function PlayersTab({
               ) : null}
 
               <div style={playerRowStyle}>
-                <div style={rankCellStyle}>{index + 1}</div>
+                <div style={avatarCellStyle}>
+                  <img
+                    src={`https://api.dicebear.com/9.x/adventurer-neutral/svg?seed=${encodeURIComponent(player.name)}`}
+                    alt={player.name}
+                    style={avatarStyle}
+                  />
+                </div>
 
                 <div style={playerCellStyle}>
                   <div style={playerNameStyle}>{player.name}</div>
-                  <div style={playerMetaLineStyle}>
-                    <span>{player.previousTeam}</span>
+                  <div style={playerSublineStyle}>
+                    <span>#{player.number}</span>
                     <PositionBadge position={player.position} />
-                    <MiniTag label={formatLevel(player.tier)} />
-                    <MiniTag label={player.shoots} />
                   </div>
                 </div>
 
-                <div style={numberCellStyle}>0.0</div>
+                <div style={numberCellStyle}>{formatLevel(player.tier)}</div>
                 <div style={numberCellStyle}>{player.lastSeasonPoints}</div>
+                <div style={numberCellStyle}>{player.shoots}</div>
+                <div style={numberCellStyle}>
+                  {player.plusMinus > 0 ? `+${player.plusMinus}` : player.plusMinus}
+                </div>
 
                 <div style={queueCellStyle}>
                   <button style={queueButtonStyle(isQueued)}>Queue</button>
@@ -161,10 +171,6 @@ function PositionBadge({ position }: { position: string }) {
   return <span style={positionBadgeStyle(position)}>{position}</span>;
 }
 
-function MiniTag({ label }: { label: string }) {
-  return <span style={miniTagStyle}>{label}</span>;
-}
-
 function formatLevel(level: DraftPlayer["tier"]) {
   if (level === "A") return "A";
   if (level === "B") return "B";
@@ -175,7 +181,7 @@ function formatLevel(level: DraftPlayer["tier"]) {
 function queueButtonStyle(queued: boolean): React.CSSProperties {
   return {
     borderRadius: "999px",
-    padding: "0.36rem 0.88rem",
+    padding: "0.28rem 0.72rem",
     display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",
@@ -184,9 +190,9 @@ function queueButtonStyle(queued: boolean): React.CSSProperties {
       queued ? "rgba(249,115,22,0.34)" : "rgba(255,255,255,0.54)"
     }`,
     color: "white",
-    fontSize: "0.78rem",
+    fontSize: "0.72rem",
     fontWeight: 700,
-    minWidth: "78px",
+    minWidth: "64px",
   };
 }
 
@@ -239,17 +245,17 @@ const tableShellStyle: React.CSSProperties = {
 
 const headerRowStyle: React.CSSProperties = {
   display: "grid",
-  gridTemplateColumns: "38px minmax(0, 1fr) 56px 56px 86px",
+  gridTemplateColumns: "34px minmax(0, 1.3fr) 38px 44px 44px 44px 64px",
   alignItems: "center",
-  gap: "0.45rem",
+  gap: "0.35rem",
   padding: "0.45rem 0.35rem 0.35rem",
   color: "rgba(255,255,255,0.65)",
-  fontSize: "0.7rem",
+  fontSize: "0.66rem",
   fontWeight: 700,
   letterSpacing: "0.06em",
 };
 
-const rankHeaderStyle: React.CSSProperties = {
+const avatarHeaderStyle: React.CSSProperties = {
   textAlign: "center",
 };
 
@@ -267,19 +273,28 @@ const queueHeaderStyle: React.CSSProperties = {
 
 const playerRowStyle: React.CSSProperties = {
   display: "grid",
-  gridTemplateColumns: "38px minmax(0, 1fr) 56px 56px 86px",
+  gridTemplateColumns: "34px minmax(0, 1.3fr) 38px 44px 44px 44px 64px",
   alignItems: "center",
-  gap: "0.45rem",
-  minHeight: "62px",
-  padding: "0.55rem 0.35rem",
+  gap: "0.35rem",
+  minHeight: "50px",
+  padding: "0.38rem 0.35rem",
   borderTop: "1px solid rgba(148,163,184,0.08)",
   background: "rgba(255,255,255,0.02)",
 };
 
-const rankCellStyle: React.CSSProperties = {
+const avatarCellStyle: React.CSSProperties = {
   textAlign: "center",
-  color: "rgba(255,255,255,0.62)",
-  fontSize: "0.9rem",
+  display: "flex",
+  justifyContent: "center",
+};
+
+const avatarStyle: React.CSSProperties = {
+  width: "28px",
+  height: "28px",
+  borderRadius: "999px",
+  objectFit: "cover",
+  border: "1px solid rgba(148,163,184,0.22)",
+  background: "linear-gradient(180deg, rgba(30,41,59,0.95), rgba(15,23,42,0.95))",
 };
 
 const playerCellStyle: React.CSSProperties = {
@@ -288,25 +303,26 @@ const playerCellStyle: React.CSSProperties = {
 
 const playerNameStyle: React.CSSProperties = {
   color: "#60a5fa",
-  fontSize: "0.95rem",
+  fontSize: "0.88rem",
   fontWeight: 700,
   lineHeight: 1.05,
 };
 
-const playerMetaLineStyle: React.CSSProperties = {
+const playerSublineStyle: React.CSSProperties = {
   display: "flex",
   alignItems: "center",
   gap: "0.35rem",
   flexWrap: "wrap",
-  marginTop: "0.2rem",
+  marginTop: "0.14rem",
   color: "rgba(255,255,255,0.58)",
-  fontSize: "0.76rem",
+  fontSize: "0.72rem",
 };
 
 const numberCellStyle: React.CSSProperties = {
   textAlign: "right",
   color: "rgba(255,255,255,0.78)",
-  fontSize: "0.9rem",
+  fontSize: "0.8rem",
+  fontWeight: 600,
 };
 
 const queueCellStyle: React.CSSProperties = {
@@ -339,21 +355,6 @@ function getPositionBadgeColor(position: string) {
   if (normalized === "G") return "#f8fafc";
   return "#cbd5e1";
 }
-
-const miniTagStyle: React.CSSProperties = {
-  display: "inline-flex",
-  alignItems: "center",
-  justifyContent: "center",
-  minWidth: "20px",
-  height: "18px",
-  padding: "0 0.34rem",
-  borderRadius: "999px",
-  background: "rgba(255,255,255,0.1)",
-  color: "rgba(255,255,255,0.78)",
-  fontSize: "0.66rem",
-  fontWeight: 700,
-  lineHeight: 1,
-};
 
 const pickMarkerStyle: React.CSSProperties = {
   position: "relative",
