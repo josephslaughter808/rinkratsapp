@@ -46,6 +46,15 @@ type ClipRow = {
   created_at: string;
 };
 
+type ClipPlayerLinkRow = {
+  clip_id: string;
+  player_id: string;
+  involvement_role: string;
+  players?: {
+    name: string | null;
+  }[] | null;
+};
+
 type PlayerRow = {
   id: string;
   name: string | null;
@@ -64,6 +73,7 @@ export default function FilmRoomPage() {
   const [teamsById, setTeamsById] = useState<Record<string, TeamRow>>({});
   const [filmsByGame, setFilmsByGame] = useState<Record<string, FilmRow[]>>({});
   const [clipsByGame, setClipsByGame] = useState<Record<string, ClipRow[]>>({});
+  const [clipPlayersByClip, setClipPlayersByClip] = useState<Record<string, ClipPlayerLinkRow[]>>({});
   const [roster, setRoster] = useState<PlayerRow[]>([]);
   const [bannerMessage, setBannerMessage] = useState("");
 
@@ -82,6 +92,8 @@ export default function FilmRoomPage() {
     startTime: "00:00",
     endTime: "00:15",
     playerId: "",
+    primaryAssistId: "",
+    secondaryAssistId: "",
   });
 
   const role = selectedTeam?.role ?? "player";
@@ -215,6 +227,34 @@ export default function FilmRoomPage() {
         setSchemaReady(true);
         setFilmsByGame(groupByGame((filmsResult.data ?? []) as FilmRow[]));
         setClipsByGame(groupByGame((clipsResult.data ?? []) as ClipRow[]));
+        const clipIds = ((clipsResult.data ?? []) as ClipRow[]).map((clip) => clip.id);
+
+        if (clipIds.length) {
+          const clipPlayersResult = await supabase
+            .from("game_clip_players")
+            .select("clip_id, player_id, involvement_role, players(name)")
+            .in("clip_id", clipIds);
+
+          if (!clipPlayersResult.error) {
+            setClipPlayersByClip(
+              (clipPlayersResult.data ?? []).reduce<Record<string, ClipPlayerLinkRow[]>>(
+                (accumulator, row) => {
+                  const typedRow = row as ClipPlayerLinkRow;
+                  accumulator[typedRow.clip_id] = [
+                    ...(accumulator[typedRow.clip_id] ?? []),
+                    typedRow,
+                  ];
+                  return accumulator;
+                },
+                {}
+              )
+            );
+          } else {
+            setClipPlayersByClip({});
+          }
+        } else {
+          setClipPlayersByClip({});
+        }
       }
 
       const firstGameId = nextGames[0]?.id ?? "";
@@ -231,6 +271,8 @@ export default function FilmRoomPage() {
           ((filmsResult.data ?? []) as FilmRow[])[0]?.id ||
           "",
         playerId: current.playerId || (rosterResult.data?.[0] as PlayerRow | undefined)?.id || "",
+        primaryAssistId: current.primaryAssistId || "",
+        secondaryAssistId: current.secondaryAssistId || "",
       }));
 
       setLoading(false);
@@ -249,6 +291,11 @@ export default function FilmRoomPage() {
   );
 
   async function handleSaveFilm() {
+    if (!isLeadership) {
+      setBannerMessage("Only captains, assistants, and film managers can add film.");
+      return;
+    }
+
     if (!activeTeam || !schemaReady || !filmDraft.gameId || !filmDraft.sourceUrl.trim()) {
       return;
     }
@@ -287,6 +334,7 @@ export default function FilmRoomPage() {
 
   async function handleSaveClip() {
     if (
+      !isLeadership ||
       !activeTeam ||
       !schemaReady ||
       !clipDraft.gameId ||
@@ -294,6 +342,9 @@ export default function FilmRoomPage() {
       !clipDraft.title.trim() ||
       !clipDraft.playerId
     ) {
+      if (!isLeadership) {
+        setBannerMessage("Only captains, assistants, and film managers can publish highlights.");
+      }
       return;
     }
     const team = activeTeam;
@@ -331,12 +382,34 @@ export default function FilmRoomPage() {
 
     const selectedFilm = selectedGameFilms.find((film) => film.id === clipDraft.filmId);
 
-    await Promise.all([
-      supabase.from("game_clip_players").insert({
+    const clipPlayerRows = [
+      {
         clip_id: clipRow.id,
         player_id: clipDraft.playerId,
         involvement_role: clipDraft.clipType === "goal" ? "scorer" : "featured",
-      }),
+      },
+      ...(clipDraft.clipType === "goal" && clipDraft.primaryAssistId
+        ? [
+            {
+              clip_id: clipRow.id,
+              player_id: clipDraft.primaryAssistId,
+              involvement_role: "primary_assist",
+            },
+          ]
+        : []),
+      ...(clipDraft.clipType === "goal" && clipDraft.secondaryAssistId
+        ? [
+            {
+              clip_id: clipRow.id,
+              player_id: clipDraft.secondaryAssistId,
+              involvement_role: "secondary_assist",
+            },
+          ]
+        : []),
+    ];
+
+    await Promise.all([
+      supabase.from("game_clip_players").insert(clipPlayerRows),
       supabase.from("video_clips").insert({
         player_id: clipDraft.playerId,
         game_id: clipDraft.gameId,
@@ -350,12 +423,26 @@ export default function FilmRoomPage() {
       ...current,
       [clipRow.game_id]: [clipRow as ClipRow, ...(current[clipRow.game_id] ?? [])],
     }));
+    setClipPlayersByClip((current) => ({
+      ...current,
+      [clipRow.id]: clipPlayerRows.map((row) => ({
+        ...row,
+        players: [
+          {
+            name:
+              roster.find((player) => player.id === row.player_id)?.name ?? null,
+          },
+        ],
+      })),
+    }));
     setClipDraft((current) => ({
       ...current,
       title: "",
       description: "",
       startTime: "00:00",
       endTime: "00:15",
+      primaryAssistId: "",
+      secondaryAssistId: "",
     }));
     setBannerMessage("Highlight saved and linked to the player.");
   }
@@ -481,7 +568,7 @@ export default function FilmRoomPage() {
           <div style={{ borderTop: "1px solid rgba(148,163,184,0.12)", paddingTop: "1rem" }}>
             <div style={panelLabelStyle}>Create Highlight</div>
             <p style={{ color: "var(--text-muted)", marginTop: "0.25rem", marginBottom: "0.8rem" }}>
-              Published clips will also write into the player’s legacy highlight feed so the goal stays visible on their page.
+              Published clips write into the player highlight history, and goals can include primary and secondary assists.
             </p>
             <div style={formGridStyle}>
               <select
@@ -529,6 +616,52 @@ export default function FilmRoomPage() {
                 ))}
               </select>
             </div>
+            {clipDraft.clipType === "goal" ? (
+              <div style={{ ...formGridStyle, marginTop: "0.8rem" }}>
+                <select
+                  value={clipDraft.primaryAssistId}
+                  onChange={(event) =>
+                    setClipDraft((current) => ({
+                      ...current,
+                      primaryAssistId: event.target.value,
+                    }))
+                  }
+                  style={inputStyle}
+                >
+                  <option value="">Primary assist (optional)</option>
+                  {roster
+                    .filter((player) => player.id !== clipDraft.playerId)
+                    .map((player) => (
+                      <option key={player.id} value={player.id}>
+                        {player.name || "Unnamed player"}
+                      </option>
+                    ))}
+                </select>
+                <select
+                  value={clipDraft.secondaryAssistId}
+                  onChange={(event) =>
+                    setClipDraft((current) => ({
+                      ...current,
+                      secondaryAssistId: event.target.value,
+                    }))
+                  }
+                  style={inputStyle}
+                >
+                  <option value="">Secondary assist (optional)</option>
+                  {roster
+                    .filter(
+                      (player) =>
+                        player.id !== clipDraft.playerId &&
+                        player.id !== clipDraft.primaryAssistId
+                    )
+                    .map((player) => (
+                      <option key={player.id} value={player.id}>
+                        {player.name || "Unnamed player"}
+                      </option>
+                    ))}
+                </select>
+              </div>
+            ) : null}
             <div style={{ ...formGridStyle, marginTop: "0.8rem" }}>
               <input
                 value={clipDraft.title}
@@ -642,6 +775,11 @@ export default function FilmRoomPage() {
                         <div style={{ color: "var(--text-muted)", marginTop: "0.25rem" }}>
                           {clip.clip_type} • {formatClipRange(clip.start_seconds, clip.end_seconds)}
                         </div>
+                        {clipPlayersByClip[clip.id]?.length ? (
+                          <div style={{ color: "var(--accent-light)", marginTop: "0.25rem", fontSize: "0.85rem" }}>
+                            {formatTaggedPlayers(clipPlayersByClip[clip.id])}
+                          </div>
+                        ) : null}
                       </div>
                       <Link href={`/dashboard/games/${game.id}`} style={clipOpenStyle}>
                         View
@@ -712,6 +850,39 @@ function formatGameHeading(game: GameRow, teamsById: Record<string, TeamRow>) {
 
 function formatClipRange(start: number, end: number) {
   return `${formatClock(start)} - ${formatClock(end)}`;
+}
+
+function formatTaggedPlayers(rows: ClipPlayerLinkRow[]) {
+  const byRole = new Map<string, string[]>();
+
+  for (const row of rows) {
+    const name = row.players?.[0]?.name;
+
+    if (!name) {
+      continue;
+    }
+
+    byRole.set(row.involvement_role, [...(byRole.get(row.involvement_role) ?? []), name]);
+  }
+
+  const scorer = byRole.get("scorer")?.[0];
+  const primaryAssist = byRole.get("primary_assist")?.[0];
+  const secondaryAssist = byRole.get("secondary_assist")?.[0];
+  const featured = byRole.get("featured")?.[0];
+
+  if (scorer) {
+    const assists = [primaryAssist, secondaryAssist].filter(Boolean).join(", ");
+    return assists ? `Scorer: ${scorer} • Assists: ${assists}` : `Scorer: ${scorer}`;
+  }
+
+  if (featured) {
+    return `Featured: ${featured}`;
+  }
+
+  return rows
+    .map((row) => row.players?.[0]?.name)
+    .filter(Boolean)
+    .join(", ");
 }
 
 function formatClock(seconds: number) {

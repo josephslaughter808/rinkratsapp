@@ -212,6 +212,7 @@ export default function GameDetailsPage() {
                   clipLabel: formatRange(clip.start_seconds, clip.end_seconds),
                   playerName:
                     clip.game_clip_players?.[0]?.players?.[0]?.name || "Unassigned",
+                  playerLine: formatClipPlayerLine(clip.game_clip_players ?? []),
                   url: "",
                 }))
               : clips.map((clip) => ({
@@ -224,6 +225,9 @@ export default function GameDetailsPage() {
                       ? formatTimestamp(clip.timestamp_seconds)
                       : "Timestamp TBD",
                   playerName: clip.players?.[0]?.name || "Unassigned",
+                  playerLine: clip.players?.[0]?.name
+                    ? `Tagged player: ${clip.players[0].name}`
+                    : "Tagged player: Unassigned",
                   url: clip.url,
                 }))
             ).map((clip) => (
@@ -253,7 +257,7 @@ export default function GameDetailsPage() {
                 </div>
 
                 <div style={{ color: "var(--text-muted)" }}>
-                  Tagged player: {clip.playerName}
+                  {clip.playerLine}
                 </div>
               </article>
             ))}
@@ -312,6 +316,33 @@ function formatTimestamp(seconds: number) {
 
 function formatRange(start: number, end: number) {
   return `${formatTimestamp(start)} - ${formatTimestamp(end)}`;
+}
+
+function formatClipPlayerLine(
+  rows: Array<{
+    involvement_role: string;
+    players?: Array<{ name: string | null }> | null;
+  }>
+) {
+  const scorer = rows.find((row) => row.involvement_role === "scorer")?.players?.[0]?.name;
+  const primaryAssist = rows.find(
+    (row) => row.involvement_role === "primary_assist"
+  )?.players?.[0]?.name;
+  const secondaryAssist = rows.find(
+    (row) => row.involvement_role === "secondary_assist"
+  )?.players?.[0]?.name;
+  const featured = rows.find((row) => row.involvement_role === "featured")?.players?.[0]?.name;
+
+  if (scorer) {
+    const assists = [primaryAssist, secondaryAssist].filter(Boolean).join(", ");
+    return assists ? `Scorer: ${scorer} • Assists: ${assists}` : `Scorer: ${scorer}`;
+  }
+
+  if (featured) {
+    return `Featured: ${featured}`;
+  }
+
+  return "Tagged player: Unassigned";
 }
 
 const detailSummaryStyle: CSSProperties = {
