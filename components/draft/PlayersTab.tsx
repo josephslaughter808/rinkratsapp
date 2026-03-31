@@ -29,6 +29,9 @@ export default function PlayersTab({
   const [positionFilter, setPositionFilter] = useState<string>("All");
   const [tierFilter, setTierFilter] = useState<string>("All");
   const [handFilter, setHandFilter] = useState<string>("All");
+  const [sortKey, setSortKey] = useState<"player" | "level" | "points" | "hand" | "plusMinus">(
+    "points"
+  );
 
   const visiblePlayers = players
     .filter((player) => {
@@ -50,13 +53,42 @@ export default function PlayersTab({
       return true;
     })
     .sort((a, b) => {
-      if (b.lastSeasonPoints !== a.lastSeasonPoints) {
-        return b.lastSeasonPoints - a.lastSeasonPoints;
+      if (sortKey === "level") {
+        const levelDifference = levelSortValue(b.tier) - levelSortValue(a.tier);
+        if (levelDifference !== 0) return levelDifference;
+        if (b.lastSeasonPoints !== a.lastSeasonPoints) {
+          return b.lastSeasonPoints - a.lastSeasonPoints;
+        }
+        return a.name.localeCompare(b.name);
       }
 
-      const levelDifference = levelSortValue(b.tier) - levelSortValue(a.tier);
-      if (levelDifference !== 0) {
-        return levelDifference;
+      if (sortKey === "points") {
+        if (b.lastSeasonPoints !== a.lastSeasonPoints) {
+          return b.lastSeasonPoints - a.lastSeasonPoints;
+        }
+        const levelDifference = levelSortValue(b.tier) - levelSortValue(a.tier);
+        if (levelDifference !== 0) return levelDifference;
+        return a.name.localeCompare(b.name);
+      }
+
+      if (sortKey === "hand") {
+        if (a.shoots !== b.shoots) {
+          return a.shoots.localeCompare(b.shoots);
+        }
+        if (b.lastSeasonPoints !== a.lastSeasonPoints) {
+          return b.lastSeasonPoints - a.lastSeasonPoints;
+        }
+        return a.name.localeCompare(b.name);
+      }
+
+      if (sortKey === "plusMinus") {
+        if (b.plusMinus !== a.plusMinus) {
+          return b.plusMinus - a.plusMinus;
+        }
+        if (b.lastSeasonPoints !== a.lastSeasonPoints) {
+          return b.lastSeasonPoints - a.lastSeasonPoints;
+        }
+        return a.name.localeCompare(b.name);
       }
 
       return a.name.localeCompare(b.name);
@@ -133,11 +165,21 @@ export default function PlayersTab({
 
         <div style={headerRowStyle}>
           <div style={avatarHeaderStyle} />
-          <div style={playerHeaderStyle}>PLAYER</div>
-          <div style={statHeaderStyle}>LVL</div>
-          <div style={statHeaderStyle}>PTS</div>
-          <div style={statHeaderStyle}>HAND</div>
-          <div style={statHeaderStyle}>+/-</div>
+          <button type="button" onClick={() => setSortKey("player")} style={headerButtonStyle("player", sortKey)}>
+            PLAYER
+          </button>
+          <button type="button" onClick={() => setSortKey("level")} style={headerButtonStyle("level", sortKey)}>
+            LVL
+          </button>
+          <button type="button" onClick={() => setSortKey("points")} style={headerButtonStyle("points", sortKey)}>
+            PTS
+          </button>
+          <button type="button" onClick={() => setSortKey("hand")} style={headerButtonStyle("hand", sortKey)}>
+            HAND
+          </button>
+          <button type="button" onClick={() => setSortKey("plusMinus")} style={headerButtonStyle("plusMinus", sortKey)}>
+            +/-
+          </button>
           <div style={queueHeaderStyle} />
         </div>
       </div>
@@ -313,14 +355,6 @@ const avatarHeaderStyle: React.CSSProperties = {
   textAlign: "center",
 };
 
-const playerHeaderStyle: React.CSSProperties = {
-  textAlign: "left",
-};
-
-const statHeaderStyle: React.CSSProperties = {
-  textAlign: "center",
-};
-
 const queueHeaderStyle: React.CSSProperties = {
   textAlign: "right",
 };
@@ -363,6 +397,23 @@ const playerCellButtonStyle: React.CSSProperties = {
   textAlign: "left",
   cursor: "pointer",
 };
+
+function headerButtonStyle(
+  key: "player" | "level" | "points" | "hand" | "plusMinus",
+  activeKey: "player" | "level" | "points" | "hand" | "plusMinus"
+): React.CSSProperties {
+  return {
+    background: "transparent",
+    border: "none",
+    padding: 0,
+    textAlign: key === "player" ? "left" : "center",
+    color: key === activeKey ? "rgba(255,255,255,0.92)" : "rgba(255,255,255,0.65)",
+    fontSize: "0.66rem",
+    fontWeight: key === activeKey ? 800 : 700,
+    letterSpacing: "0.06em",
+    cursor: "pointer",
+  };
+}
 
 const playerNameStyle: React.CSSProperties = {
   color: "#60a5fa",
