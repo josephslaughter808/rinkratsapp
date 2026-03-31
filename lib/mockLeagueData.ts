@@ -522,10 +522,7 @@ export const draftPlayers: DraftPlayer[] = [
   ...buildTestDraftPlayers(84),
 ];
 
-export const draftedPlayerIds = ["dp2", "dp4"];
-export const draftQueue: string[] = [];
-
-export const draftPicks: DraftPick[] = [
+const seededDraftPicks: DraftPick[] = [
   {
     id: "pick1",
     round: 1,
@@ -558,48 +555,30 @@ export const draftPicks: DraftPick[] = [
     playerId: null,
     madeBy: "Tyson Black",
   },
-  {
-    id: "pick5",
-    round: 2,
-    overall: 5,
-    teamId: "mudsquatch",
-    playerId: null,
-    madeBy: "Tyson Black",
-  },
-  {
-    id: "pick6",
-    round: 2,
-    overall: 6,
-    teamId: "platypucks",
-    playerId: null,
-    madeBy: "Ava Reese",
-  },
-  {
-    id: "pick7",
-    round: 2,
-    overall: 7,
-    teamId: "ratt-damon",
-    playerId: null,
-    madeBy: "Chris Boone",
-  },
-  {
-    id: "pick8",
-    round: 2,
-    overall: 8,
-    teamId: "desert-storm",
-    playerId: null,
-    madeBy: "Nate Keller",
-  },
 ];
+
+export const draftPicks: DraftPick[] = buildSnakeDraftPicks(
+  draftPlayers.length,
+  teams,
+  seededDraftPicks
+);
+
+export const draftedPlayerIds = draftPicks
+  .filter((pick) => pick.playerId)
+  .map((pick) => pick.playerId as string);
+
+export const draftQueue: string[] = [];
 
 export const draftConfig = {
   title: "Spring 2026 League Draft",
-  currentPickOverall: 3,
-  currentRound: 1,
-  totalRounds: 21,
-  timeLeft: 74,
+  currentPickOverall: draftPicks.find((pick) => !pick.playerId)?.overall ?? 1,
+  currentRound: draftPicks.find((pick) => !pick.playerId)?.round ?? 1,
+  totalRounds: Math.ceil(draftPlayers.length / teams.length),
+  pickDurationSeconds: 600,
+  timeLeft: 600,
   yourTeamId: "desert-storm",
-  yourNextPickOverall: 8,
+  yourNextPickOverall:
+    draftPicks.find((pick) => pick.teamId === "desert-storm" && !pick.playerId)?.overall ?? 1,
 };
 
 function buildTestDraftPlayers(count: number): DraftPlayer[] {
@@ -684,4 +663,30 @@ export function getGamesForWeek(week: number) {
 export function getPlayer(playerId: string | null) {
   if (!playerId) return undefined;
   return draftPlayers.find((player) => player.id === playerId);
+}
+
+function buildSnakeDraftPicks(
+  totalPlayers: number,
+  draftTeams: Team[],
+  seeds: DraftPick[]
+): DraftPick[] {
+  const seedMap = new Map(seeds.map((pick) => [pick.overall, pick]));
+
+  return Array.from({ length: totalPlayers }, (_, index) => {
+    const overall = index + 1;
+    const round = Math.floor(index / draftTeams.length) + 1;
+    const pickInRound = index % draftTeams.length;
+    const draftOrder = round % 2 === 1 ? draftTeams : [...draftTeams].reverse();
+    const team = draftOrder[pickInRound];
+    const seededPick = seedMap.get(overall);
+
+    return {
+      id: seededPick?.id ?? `pick${overall}`,
+      round,
+      overall,
+      teamId: seededPick?.teamId ?? team.id,
+      playerId: seededPick?.playerId ?? null,
+      madeBy: seededPick?.madeBy ?? team.captain,
+    };
+  });
 }

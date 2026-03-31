@@ -8,10 +8,18 @@ export default function BoardTab({
   picks,
   teams,
   players,
+  currentPickOverall,
+  yourNextPickOverall,
+  yourTeamId,
+  totalRounds,
 }: {
   picks: DraftPick[];
   teams: Team[];
   players: DraftPlayer[];
+  currentPickOverall: number;
+  yourNextPickOverall?: number;
+  yourTeamId: string;
+  totalRounds: number;
 }) {
   const [viewMode, setViewMode] = useState<"round" | "roster">("round");
 
@@ -32,7 +40,16 @@ export default function BoardTab({
         </button>
       </div>
 
-      <DraftBoard picks={picks} teams={teams} players={players} viewMode={viewMode} />
+      <DraftBoard
+        picks={picks}
+        teams={teams}
+        players={players}
+        viewMode={viewMode}
+        currentPickOverall={currentPickOverall}
+        yourNextPickOverall={yourNextPickOverall}
+        yourTeamId={yourTeamId}
+        totalRounds={totalRounds}
+      />
     </div>
   );
 }

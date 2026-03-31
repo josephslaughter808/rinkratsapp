@@ -4,7 +4,7 @@ type DraftHeaderProps = {
   currentTeam: string;
   pickNumber: number;
   round: number;
-  totalRounds: number;
+  totalPicks: number;
   timeLeft: number;
   onExit?: () => void;
 };
@@ -13,7 +13,7 @@ export default function DraftHeader({
   currentTeam,
   pickNumber,
   round,
-  totalRounds,
+  totalPicks,
   timeLeft,
   onExit,
 }: DraftHeaderProps) {
@@ -69,7 +69,7 @@ export default function DraftHeader({
           lineHeight: 1.1,
         }}
       >
-        Rnd {round}, Pick {pickNumber} of {totalRounds}
+        Rnd {round}, Pick {pickNumber} of {totalPicks}
       </div>
     </div>
   );

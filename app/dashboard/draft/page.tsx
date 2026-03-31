@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import DraftHeader from "@/components/draft/DraftHeader";
 import PlayersTab from "@/components/draft/PlayersTab";
 import QueueTab from "@/components/draft/QueueTab";
@@ -9,7 +9,7 @@ import RostersTab from "@/components/draft/RostersTab";
 import DraftPickRail from "@/components/draft/DraftPickRail";
 import {
   draftConfig,
-  draftedPlayerIds,
+  DraftPick,
   draftPicks,
   draftPlayers,
   draftQueue,
@@ -23,15 +23,40 @@ type DraftTab = "players" | "queue" | "board" | "rosters";
 export default function DraftRoomPage() {
   const [activeTab, setActiveTab] = useState<DraftTab>("players");
   const [queuedPlayerIds, setQueuedPlayerIds] = useState<string[]>(draftQueue);
-  const onClockTeam =
-    getTeam(
-      draftPicks.find((pick) => pick.overall === draftConfig.currentPickOverall)
-        ?.teamId || ""
-    )?.name || "League Team";
+  const [draftStatePicks, setDraftStatePicks] = useState<DraftPick[]>(draftPicks);
+  const [timeLeft, setTimeLeft] = useState<number>(draftConfig.pickDurationSeconds);
+
+  const draftedPlayerIds = useMemo(
+    () =>
+      draftStatePicks
+        .filter((pick) => pick.playerId)
+        .map((pick) => pick.playerId as string),
+    [draftStatePicks]
+  );
+
+  const currentPick = useMemo(
+    () => draftStatePicks.find((pick) => !pick.playerId) ?? null,
+    [draftStatePicks]
+  );
+
+  const currentPickOverall = currentPick?.overall ?? draftStatePicks.length;
+  const currentRound =
+    currentPick?.round ?? Math.max(1, Math.ceil(draftStatePicks.length / teams.length));
+  const totalPicks = draftPlayers.length;
+  const totalRounds = Math.max(1, Math.ceil(totalPicks / teams.length));
+  const yourNextPickOverall =
+    draftStatePicks.find(
+      (pick) => pick.teamId === draftConfig.yourTeamId && !pick.playerId
+    )?.overall ?? currentPickOverall;
+  const onClockTeam = getTeam(currentPick?.teamId || "")?.name || "Draft Complete";
+  const canDraftForCurrentPick = currentPick?.teamId === draftConfig.yourTeamId;
+
   const queuePlayers = queuedPlayerIds
     .map((playerId) => getPlayer(playerId))
-    .filter((player): player is NonNullable<typeof player> => Boolean(player));
-  const transformedPicks = draftPicks.map((pick) => {
+    .filter((player): player is NonNullable<typeof player> => Boolean(player))
+    .filter((player) => !draftedPlayerIds.includes(player.id));
+
+  const transformedPicks = draftStatePicks.map((pick) => {
     const player = getPlayer(pick.playerId);
 
     return {
@@ -44,6 +69,42 @@ export default function DraftRoomPage() {
     };
   });
 
+  const getBestAvailablePlayerId = useCallback(() => {
+    const availablePlayers = draftPlayers.filter(
+      (player) => !draftedPlayerIds.includes(player.id)
+    );
+
+    return [...availablePlayers]
+      .sort((a, b) => {
+        if (b.lastSeasonPoints !== a.lastSeasonPoints) {
+          return b.lastSeasonPoints - a.lastSeasonPoints;
+        }
+
+        const levelDifference = levelSortValue(b.tier) - levelSortValue(a.tier);
+        if (levelDifference !== 0) {
+          return levelDifference;
+        }
+
+        return a.name.localeCompare(b.name);
+      })[0]?.id;
+  }, [draftedPlayerIds]);
+
+  const handleDraftPlayer = useCallback(
+    (playerId: string) => {
+      if (!currentPick) return;
+      if (draftedPlayerIds.includes(playerId)) return;
+
+      setDraftStatePicks((existing) =>
+        existing.map((pick) =>
+          pick.id === currentPick.id ? { ...pick, playerId } : pick
+        )
+      );
+      setQueuedPlayerIds((existing) => existing.filter((id) => id !== playerId));
+      setTimeLeft(draftConfig.pickDurationSeconds);
+    },
+    [currentPick, draftedPlayerIds]
+  );
+
   function handleToggleQueue(playerId: string) {
     setQueuedPlayerIds((current) =>
       current.includes(playerId)
@@ -51,6 +112,38 @@ export default function DraftRoomPage() {
         : [...current, playerId]
     );
   }
+
+  useEffect(() => {
+    if (!currentPick) return;
+
+    const timer = window.setInterval(() => {
+      setTimeLeft((current) => {
+        if (current <= 1) {
+          const queuedChoice =
+            currentPick.teamId === draftConfig.yourTeamId
+              ? queuedPlayerIds.find((playerId) => !draftedPlayerIds.includes(playerId))
+              : undefined;
+          const fallbackPlayerId = queuedChoice ?? getBestAvailablePlayerId();
+
+          if (fallbackPlayerId) {
+            handleDraftPlayer(fallbackPlayerId);
+          }
+
+          return draftConfig.pickDurationSeconds;
+        }
+
+        return current - 1;
+      });
+    }, 1000);
+
+    return () => window.clearInterval(timer);
+  }, [
+    currentPick,
+    draftedPlayerIds,
+    getBestAvailablePlayerId,
+    handleDraftPlayer,
+    queuedPlayerIds,
+  ]);
 
   return (
     <div
@@ -65,10 +158,10 @@ export default function DraftRoomPage() {
     >
       <DraftHeader
         currentTeam={onClockTeam}
-        pickNumber={draftConfig.currentPickOverall}
-        round={draftConfig.currentRound}
-        totalRounds={draftConfig.totalRounds}
-        timeLeft={draftConfig.timeLeft}
+        pickNumber={currentPickOverall}
+        round={currentRound}
+        totalPicks={totalPicks}
+        timeLeft={timeLeft}
         onExit={() => {
           window.history.back();
         }}
@@ -77,8 +170,8 @@ export default function DraftRoomPage() {
       <DraftPickRail
         teams={teams}
         picks={transformedPicks}
-        currentPickOverall={draftConfig.currentPickOverall}
-        yourNextPickOverall={draftConfig.yourNextPickOverall}
+        currentPickOverall={currentPickOverall}
+        yourNextPickOverall={yourNextPickOverall}
       />
 
       <div
@@ -98,13 +191,26 @@ export default function DraftRoomPage() {
           />
         )}
         {activeTab === "queue" && (
-          <QueueTab players={queuePlayers} onToggleQueue={handleToggleQueue} />
+          <QueueTab
+            players={queuePlayers}
+            onToggleQueue={handleToggleQueue}
+            onDraftPlayer={handleDraftPlayer}
+            canDraft={canDraftForCurrentPick}
+          />
         )}
         {activeTab === "board" && (
-          <BoardTab picks={draftPicks} teams={teams} players={draftPlayers} />
+          <BoardTab
+            picks={draftStatePicks}
+            teams={teams}
+            players={draftPlayers}
+            currentPickOverall={currentPickOverall}
+            yourNextPickOverall={yourNextPickOverall}
+            yourTeamId={draftConfig.yourTeamId}
+            totalRounds={totalRounds}
+          />
         )}
         {activeTab === "rosters" && (
-          <RostersTab teams={teams} picks={draftPicks} players={draftPlayers} />
+          <RostersTab teams={teams} picks={draftStatePicks} players={draftPlayers} />
         )}
       </div>
 
@@ -197,4 +303,17 @@ export default function DraftRoomPage() {
       </nav>
     </div>
   );
+}
+
+function levelSortValue(level: string) {
+  const order: Record<string, number> = {
+    E: 6,
+    A: 5,
+    B: 4,
+    C: 3,
+    D: 2,
+    R: 1,
+  };
+
+  return order[level] ?? 0;
 }

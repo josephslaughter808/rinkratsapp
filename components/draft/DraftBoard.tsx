@@ -1,20 +1,28 @@
 "use client";
 
-import { DraftPick, DraftPlayer, Team, draftConfig } from "@/lib/mockLeagueData";
+import { DraftPick, DraftPlayer, Team } from "@/lib/mockLeagueData";
 
 export default function DraftBoard({
   picks,
   teams,
   players,
   viewMode,
+  currentPickOverall,
+  yourNextPickOverall,
+  yourTeamId,
+  totalRounds,
 }: {
   picks: DraftPick[];
   teams: Team[];
   players: DraftPlayer[];
   viewMode: "round" | "roster";
+  currentPickOverall: number;
+  yourNextPickOverall?: number;
+  yourTeamId: string;
+  totalRounds: number;
 }) {
   const rounds = Math.max(
-    draftConfig.totalRounds,
+    totalRounds,
     picks.length ? Math.max(...picks.map((pick) => pick.round)) : 0,
     Math.ceil(players.length / teams.length)
   );
@@ -34,7 +42,7 @@ export default function DraftBoard({
           {teams.map((team) => (
             <div
               key={team.id}
-              style={teamHeaderStyle(team.id === draftConfig.yourTeamId)}
+              style={teamHeaderStyle(team.id === yourTeamId)}
             >
               <div style={{ fontSize: "0.74rem", color: "var(--text-muted)" }}>
                 {team.record}
@@ -59,10 +67,8 @@ export default function DraftBoard({
                   ...teams.map((team) => {
                     const pick = getPick(round, team.id);
                     const player = getPlayer(pick?.playerId || null);
-                    const isCurrentPick =
-                      pick?.overall === draftConfig.currentPickOverall;
-                    const isYourPick =
-                      pick?.overall === draftConfig.yourNextPickOverall;
+                    const isCurrentPick = pick?.overall === currentPickOverall;
+                    const isYourPick = pick?.overall === yourNextPickOverall;
 
                     return (
                       <div
@@ -120,8 +126,7 @@ export default function DraftBoard({
                       .sort((a, b) => a.overall - b.overall);
                     const pick = teamPicks[rosterIndex];
                     const player = getPlayer(pick?.playerId || null);
-                    const isYourPick =
-                      pick?.overall === draftConfig.yourNextPickOverall;
+                    const isYourPick = pick?.overall === yourNextPickOverall;
 
                     return (
                       <div

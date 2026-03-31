@@ -5,9 +5,13 @@ import { DraftPlayer } from "@/lib/mockLeagueData";
 export default function QueueTab({
   players,
   onToggleQueue,
+  onDraftPlayer,
+  canDraft,
 }: {
   players: DraftPlayer[];
   onToggleQueue: (playerId: string) => void;
+  onDraftPlayer: (playerId: string) => void;
+  canDraft: boolean;
 }) {
   return (
     <div style={queueTabShellStyle}>
@@ -58,8 +62,13 @@ export default function QueueTab({
               </div>
 
               <div style={queueCellStyle}>
-                <button onClick={() => onToggleQueue(player.id)} style={queueButtonStyle}>
-                  Queue
+                <button
+                  onClick={() =>
+                    canDraft ? onDraftPlayer(player.id) : onToggleQueue(player.id)
+                  }
+                  style={queueButtonStyle}
+                >
+                  {canDraft ? "Draft" : "Queue"}
                 </button>
               </div>
             </div>
