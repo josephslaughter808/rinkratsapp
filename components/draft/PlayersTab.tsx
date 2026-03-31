@@ -38,7 +38,18 @@ export default function PlayersTab({
       if (handFilter !== "All" && player.shoots !== handFilter) return false;
       return true;
     })
-    .sort((a, b) => b.lastSeasonPoints - a.lastSeasonPoints);
+    .sort((a, b) => {
+      if (b.lastSeasonPoints !== a.lastSeasonPoints) {
+        return b.lastSeasonPoints - a.lastSeasonPoints;
+      }
+
+      const levelDifference = levelSortValue(b.tier) - levelSortValue(a.tier);
+      if (levelDifference !== 0) {
+        return levelDifference;
+      }
+
+      return a.name.localeCompare(b.name);
+    });
 
   return (
     <div style={{ display: "grid", gap: "0.75rem" }}>
@@ -183,6 +194,19 @@ function formatLevel(level: DraftPlayer["tier"]) {
   if (level === "B") return "B";
   if (level === "C") return "C";
   return level;
+}
+
+function levelSortValue(level: DraftPlayer["tier"]) {
+  const order: Record<DraftPlayer["tier"], number> = {
+    R: 0,
+    D: 1,
+    C: 2,
+    B: 3,
+    A: 4,
+    E: 5,
+  };
+
+  return order[level];
 }
 
 function queueButtonStyle(queued: boolean): React.CSSProperties {
