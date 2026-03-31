@@ -519,6 +519,7 @@ export const draftPlayers: DraftPlayer[] = [
     plusMinus: 3,
     note: "Reliable second-pairing defender who blocks a lot of shots.",
   },
+  ...buildTestDraftPlayers(84),
 ];
 
 export const draftedPlayerIds = ["dp2", "dp4"];
@@ -600,6 +601,73 @@ export const draftConfig = {
   yourTeamId: "desert-storm",
   yourNextPickOverall: 8,
 };
+
+function buildTestDraftPlayers(count: number): DraftPlayer[] {
+  const firstNames = [
+    "Alex",
+    "Blake",
+    "Carter",
+    "Drew",
+    "Elliot",
+    "Flynn",
+    "Gavin",
+    "Harper",
+    "Isaac",
+    "Jaden",
+    "Kai",
+    "Logan",
+    "Mason",
+    "Noah",
+    "Owen",
+    "Parker",
+    "Quinn",
+    "Reese",
+    "Sawyer",
+    "Tanner",
+    "Uri",
+    "Vince",
+    "Wyatt",
+    "Xander",
+    "Yuri",
+    "Zane",
+  ] as const;
+  const positions: DraftPlayer["position"][] = ["C", "LW", "RW", "D", "G"];
+  const tiers: DraftPlayer["tier"][] = ["A", "B", "C"];
+  const shoots: DraftPlayer["shoots"][] = ["L", "R"];
+
+  return Array.from({ length: count }, (_, index) => {
+    const firstName = firstNames[index % firstNames.length];
+    const position = positions[index % positions.length];
+    const tier = tiers[index % tiers.length];
+    const shootsHand = shoots[index % shoots.length];
+    const tierPointsBase = tier === "A" ? 30 : tier === "B" ? 19 : 10;
+    const lastSeasonPoints =
+      position === "G" ? 0 : Math.max(2, tierPointsBase - Math.floor(index / 5));
+    const plusMinus =
+      tier === "A"
+        ? 12 - (index % 7)
+        : tier === "B"
+        ? 6 - (index % 6)
+        : 2 - (index % 5);
+
+    return {
+      id: `dptest-${String(index + 1).padStart(3, "0")}`,
+      name: `${firstName} TEST`,
+      age: 21 + (index % 18),
+      number: ((index * 7) % 98) + 1,
+      position,
+      shoots: shootsHand,
+      tier,
+      previousTeam: "Draft Pool",
+      lastSeasonPoints,
+      plusMinus,
+      note:
+        position === "G"
+          ? "Unassigned test goalie seeded for draft-room QA."
+          : "Unassigned test skater seeded for draft-room QA.",
+    };
+  });
+}
 
 export function getTeam(teamId: string) {
   return teams.find((team) => team.id === teamId);
