@@ -191,7 +191,7 @@ const fallbackStatsByTeam: Record<string, TeamFallback> = {
         { player_id: "mds-1", name: "Tyson Black", points: 11, goals: 4, assists: 7, pim: 14, plusMinus: 16 },
       ],
       [
-        ...generatePreviewPlayers("dst-league", "Rink Rats", 40, 6),
+        ...generatePreviewPlayers("dst-league", "Pucklytics", 40, 6),
         ...generatePreviewPlayers("rdm", "Ratt Damon", 20, 2),
         ...generatePreviewPlayers("ply", "Platypucks", 20, 2),
         ...generatePreviewPlayers("mds", "Mudsquatch", 20, 2),

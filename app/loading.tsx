@@ -6,7 +6,7 @@ export default function AppLoading() {
           <div className="app-loading-pulse" />
         </div>
         <div>
-          <h1 style={{ fontSize: "1.8rem" }}>Rink Rats</h1>
+          <h1 style={{ fontSize: "1.8rem" }}>Pucklytics</h1>
           <p style={{ color: "var(--text-muted)", marginTop: "0.45rem" }}>
             Loading league, film, and game-day tools...
           </p>

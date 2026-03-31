@@ -13,13 +13,17 @@ const bodyFont = Source_Sans_3({
 });
 
 export const metadata: Metadata = {
-  title: "Rink Rats",
+  title: "Pucklytics",
   description: "Adult league hockey stats, highlights, draft room, film, and team communication.",
-  applicationName: "Rink Rats",
+  applicationName: "Pucklytics",
+  icons: {
+    icon: "/pucklytics-logo.png",
+    apple: "/pucklytics-logo.png",
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "Rink Rats",
+    title: "Pucklytics",
   },
 };
 
