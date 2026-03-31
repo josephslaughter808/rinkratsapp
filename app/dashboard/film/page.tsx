@@ -17,6 +17,8 @@ type GameRow = {
   rink?: string | null;
   status?: string | null;
   film_uploaded?: boolean | null;
+  puck_drop_clock?: string | null;
+  film_end_clock?: string | null;
 };
 
 type TeamRow = {
@@ -32,6 +34,9 @@ type FilmRow = {
   visibility: string;
   notes: string | null;
   created_at: string;
+  segment_order?: number | null;
+  segment_start_clock?: string | null;
+  segment_end_clock?: string | null;
 };
 
 type ClipRow = {
@@ -76,12 +81,22 @@ export default function FilmRoomPage() {
   const [clipPlayersByClip, setClipPlayersByClip] = useState<Record<string, ClipPlayerLinkRow[]>>({});
   const [roster, setRoster] = useState<PlayerRow[]>([]);
   const [bannerMessage, setBannerMessage] = useState("");
+  const [playbackState, setPlaybackState] = useState<{
+    gameId: string;
+    currentIndex: number;
+    embedUrl: string;
+    title: string;
+  } | null>(null);
 
   const [filmDraft, setFilmDraft] = useState({
     gameId: "",
     sourceUrl: "",
     visibility: "team_season",
     notes: "",
+    puckDropClock: "",
+    filmEndClock: "",
+    segmentStartClock: "",
+    segmentEndClock: "",
   });
   const [clipDraft, setClipDraft] = useState({
     gameId: "",
@@ -113,7 +128,7 @@ export default function FilmRoomPage() {
 
       const baseGameSelect =
         "id, date, season, league_id, home_team_id, away_team_id, home_score, away_score";
-      const enhancedGameSelect = `${baseGameSelect}, rink, status, film_uploaded`;
+      const enhancedGameSelect = `${baseGameSelect}, rink, status, film_uploaded, puck_drop_clock, film_end_clock`;
 
       let gamesQuery = supabase
         .from("games_v2")
@@ -152,6 +167,8 @@ export default function FilmRoomPage() {
           rink: null,
           status: null,
           film_uploaded: false,
+          puck_drop_clock: null,
+          film_end_clock: null,
         }));
         gamesError = fallbackResult.error;
       }
@@ -168,6 +185,8 @@ export default function FilmRoomPage() {
           game.status ??
           (game.home_score !== null && game.away_score !== null ? "final" : "scheduled"),
         film_uploaded: game.film_uploaded ?? false,
+        puck_drop_clock: game.puck_drop_clock ?? null,
+        film_end_clock: game.film_end_clock ?? null,
       }));
       setGames(nextGames);
 
@@ -192,9 +211,11 @@ export default function FilmRoomPage() {
         gameIds.length
           ? supabase
               .from("game_films")
-              .select("id, game_id, source_url, visibility, notes, created_at")
+              .select(
+                "id, game_id, source_url, visibility, notes, created_at, segment_order, segment_start_clock, segment_end_clock"
+              )
               .in("game_id", gameIds)
-              .order("created_at", { ascending: false })
+              .order("segment_order", { ascending: true })
           : Promise.resolve({ data: [], error: null }),
         gameIds.length
           ? supabase
@@ -258,9 +279,14 @@ export default function FilmRoomPage() {
       }
 
       const firstGameId = nextGames[0]?.id ?? "";
+      const firstGame = nextGames[0];
       setFilmDraft((current) => ({
         ...current,
         gameId: current.gameId || firstGameId,
+        puckDropClock: current.puckDropClock || firstGame?.puck_drop_clock || "",
+        filmEndClock: current.filmEndClock || firstGame?.film_end_clock || "",
+        segmentStartClock: current.segmentStartClock || inferSegmentStart(firstGame),
+        segmentEndClock: current.segmentEndClock || inferSegmentEnd(firstGame),
       }));
 
       setClipDraft((current) => ({
@@ -300,6 +326,17 @@ export default function FilmRoomPage() {
       return;
     }
     const team = activeTeam;
+    const existingSegments = filmsByGame[filmDraft.gameId] ?? [];
+    const nextSegmentOrder = existingSegments.length + 1;
+
+    await supabase
+      .from("games_v2")
+      .update({
+        puck_drop_clock: filmDraft.puckDropClock || null,
+        film_end_clock: filmDraft.filmEndClock || null,
+        film_uploaded: true,
+      })
+      .eq("id", filmDraft.gameId);
 
     const { data, error } = await supabase
       .from("game_films")
@@ -310,8 +347,13 @@ export default function FilmRoomPage() {
         source_url: filmDraft.sourceUrl.trim(),
         visibility: filmDraft.visibility,
         notes: filmDraft.notes.trim() || null,
+        segment_order: nextSegmentOrder,
+        segment_start_clock: filmDraft.segmentStartClock || null,
+        segment_end_clock: filmDraft.segmentEndClock || null,
       })
-      .select("id, game_id, source_url, visibility, notes, created_at")
+      .select(
+        "id, game_id, source_url, visibility, notes, created_at, segment_order, segment_start_clock, segment_end_clock"
+      )
       .single();
 
     if (error || !data) {
@@ -321,9 +363,31 @@ export default function FilmRoomPage() {
 
     setFilmsByGame((current) => ({
       ...current,
-      [data.game_id]: [data as FilmRow, ...(current[data.game_id] ?? [])],
+      [data.game_id]: [...(current[data.game_id] ?? []), data as FilmRow].sort(
+        (left, right) => (left.segment_order ?? 0) - (right.segment_order ?? 0)
+      ),
     }));
-    setFilmDraft((current) => ({ ...current, sourceUrl: "", notes: "" }));
+    setGames((current) =>
+      current.map((game) =>
+        game.id === filmDraft.gameId
+          ? {
+              ...game,
+              film_uploaded: true,
+              puck_drop_clock: filmDraft.puckDropClock || game.puck_drop_clock || null,
+              film_end_clock: filmDraft.filmEndClock || game.film_end_clock || null,
+            }
+          : game
+      )
+    );
+    setFilmDraft((current) => ({
+      ...current,
+      sourceUrl: "",
+      notes: "",
+      segmentStartClock: shiftHalfHour(current.segmentEndClock || current.segmentStartClock),
+      segmentEndClock: shiftHalfHour(
+        shiftHalfHour(current.segmentEndClock || current.segmentStartClock)
+      ),
+    }));
     setClipDraft((current) => ({
       ...current,
       gameId: current.gameId || data.game_id,
@@ -447,6 +511,105 @@ export default function FilmRoomPage() {
     setBannerMessage("Highlight saved and linked to the player.");
   }
 
+  function handleOpenFullGame(game: GameRow) {
+    const segments = filmsByGame[game.id] ?? [];
+    const firstPlayable = findNextPlayableSegmentIndex(
+      segments,
+      game.puck_drop_clock ?? null,
+      game.film_end_clock ?? null,
+      0
+    );
+
+    if (firstPlayable === -1) {
+      setBannerMessage("No playable film segments are linked for this game yet.");
+      return;
+    }
+
+    const embedUrl = buildPlaybackEmbedUrl(
+      segments[firstPlayable],
+      game.puck_drop_clock ?? null,
+      game.film_end_clock ?? null,
+      firstPlayable
+    );
+
+    if (!embedUrl) {
+      setBannerMessage("Could not build the full game film playback.");
+      return;
+    }
+
+    setPlaybackState({
+      gameId: game.id,
+      currentIndex: firstPlayable,
+      embedUrl,
+      title: formatGameHeading(game, teamsById),
+    });
+  }
+
+  useEffect(() => {
+    if (!playbackState) {
+      return;
+    }
+
+    const game = games.find((entry) => entry.id === playbackState.gameId);
+    const segments = filmsByGame[playbackState.gameId] ?? [];
+
+    if (!game || !segments.length) {
+      return;
+    }
+
+    const currentSegment = segments[playbackState.currentIndex];
+
+    if (!currentSegment) {
+      return;
+    }
+
+    const durationSeconds = getSegmentPlaybackDuration(
+      currentSegment,
+      playbackState.currentIndex,
+      game.puck_drop_clock ?? null,
+      game.film_end_clock ?? null
+    );
+
+    if (durationSeconds <= 0) {
+      return;
+    }
+
+    const timeout = window.setTimeout(() => {
+      const nextIndex = findNextPlayableSegmentIndex(
+        segments,
+        game.puck_drop_clock ?? null,
+        game.film_end_clock ?? null,
+        playbackState.currentIndex + 1
+      );
+
+      if (nextIndex === -1) {
+        setPlaybackState(null);
+        return;
+      }
+
+      const nextEmbedUrl = buildPlaybackEmbedUrl(
+        segments[nextIndex],
+        game.puck_drop_clock ?? null,
+        game.film_end_clock ?? null,
+        nextIndex
+      );
+
+      if (!nextEmbedUrl) {
+        setPlaybackState(null);
+        return;
+      }
+
+      setPlaybackState({
+        gameId: playbackState.gameId,
+        currentIndex: nextIndex,
+        embedUrl: nextEmbedUrl,
+        title: playbackState.title,
+      });
+    }, durationSeconds * 1000);
+
+    return () => window.clearTimeout(timeout);
+  }, [filmsByGame, games, playbackState]);
+
   if (!activeTeam) {
     return (
       <main className="page-shell">
@@ -518,9 +681,17 @@ export default function FilmRoomPage() {
           <div style={formGridStyle}>
             <select
               value={filmDraft.gameId}
-              onChange={(event) =>
-                setFilmDraft((current) => ({ ...current, gameId: event.target.value }))
-              }
+              onChange={(event) => {
+                const selectedGame = games.find((game) => game.id === event.target.value);
+                setFilmDraft((current) => ({
+                  ...current,
+                  gameId: event.target.value,
+                  puckDropClock: selectedGame?.puck_drop_clock || current.puckDropClock,
+                  filmEndClock: selectedGame?.film_end_clock || current.filmEndClock,
+                  segmentStartClock: inferSegmentStart(selectedGame) || current.segmentStartClock,
+                  segmentEndClock: inferSegmentEnd(selectedGame) || current.segmentEndClock,
+                }));
+              }}
               style={inputStyle}
             >
               {games.map((game) => (
@@ -548,6 +719,40 @@ export default function FilmRoomPage() {
               <option value="league_staff">League Staff</option>
               <option value="public_highlights_only">Public Highlights Only</option>
             </select>
+          </div>
+          <div style={{ ...formGridStyle, marginTop: "0.8rem" }}>
+            <input
+              value={filmDraft.puckDropClock}
+              onChange={(event) =>
+                setFilmDraft((current) => ({ ...current, puckDropClock: event.target.value }))
+              }
+              placeholder="Puck drop (HH:MM)"
+              style={inputStyle}
+            />
+            <input
+              value={filmDraft.filmEndClock}
+              onChange={(event) =>
+                setFilmDraft((current) => ({ ...current, filmEndClock: event.target.value }))
+              }
+              placeholder="Game end (HH:MM)"
+              style={inputStyle}
+            />
+            <input
+              value={filmDraft.segmentStartClock}
+              onChange={(event) =>
+                setFilmDraft((current) => ({ ...current, segmentStartClock: event.target.value }))
+              }
+              placeholder="Segment start (HH:MM)"
+              style={inputStyle}
+            />
+            <input
+              value={filmDraft.segmentEndClock}
+              onChange={(event) =>
+                setFilmDraft((current) => ({ ...current, segmentEndClock: event.target.value }))
+              }
+              placeholder="Segment end (HH:MM)"
+              style={inputStyle}
+            />
           </div>
           <textarea
             value={filmDraft.notes}
@@ -757,9 +962,28 @@ export default function FilmRoomPage() {
 
               {films[0] ? (
                 <div style={{ display: "grid", gap: "0.75rem", marginBottom: "0.85rem" }}>
-                  <a href={films[0].source_url} target="_blank" rel="noreferrer" style={filmPrimaryStyle}>
-                    Open full film
-                  </a>
+                  <button
+                    style={filmPrimaryButtonStyle}
+                    onClick={() => handleOpenFullGame(game)}
+                  >
+                    Full game film
+                  </button>
+                  <div style={segmentListStyle}>
+                    {films.map((film) => (
+                      <a
+                        key={film.id}
+                        href={film.source_url}
+                        target="_blank"
+                        rel="noreferrer"
+                        style={segmentLinkStyle}
+                      >
+                        Segment {film.segment_order ?? 1}
+                        {film.segment_start_clock && film.segment_end_clock
+                          ? ` • ${film.segment_start_clock}-${film.segment_end_clock}`
+                          : ""}
+                      </a>
+                    ))}
+                  </div>
                   {films[0].notes ? (
                     <div style={filmSecondaryStyle}>Uploader note: {films[0].notes}</div>
                   ) : null}
@@ -796,6 +1020,33 @@ export default function FilmRoomPage() {
           );
         })}
       </section>
+
+      {playbackState ? (
+        <div style={sheetOverlayStyle} onClick={() => setPlaybackState(null)}>
+          <div style={playbackSheetStyle} onClick={(event) => event.stopPropagation()}>
+            <div style={sheetHandleStyle} />
+            <div style={sheetHeaderStyle}>
+              <div style={{ width: 56 }} />
+              <h2 style={{ fontSize: "1.15rem" }}>Full Game Film</h2>
+              <button style={sheetDoneStyle} onClick={() => setPlaybackState(null)}>
+                Done
+              </button>
+            </div>
+            <div style={{ color: "var(--text-muted)", marginBottom: "0.75rem", textAlign: "center" }}>
+              {playbackState.title}
+            </div>
+            <div style={iframeWrapStyle}>
+              <iframe
+                key={playbackState.embedUrl}
+                src={playbackState.embedUrl}
+                allow="autoplay; encrypted-media; picture-in-picture"
+                allowFullScreen
+                style={iframeStyle}
+              />
+            </div>
+          </div>
+        </div>
+      ) : null}
     </main>
   );
 }
@@ -825,6 +1076,50 @@ function parseClockInput(value: string) {
   return 0;
 }
 
+function inferSegmentStart(game?: GameRow) {
+  if (!game?.date) {
+    return "";
+  }
+
+  const date = new Date(game.date);
+  const minutes = date.getMinutes() < 30 ? "00" : "30";
+  return `${String(date.getHours()).padStart(2, "0")}:${minutes}`;
+}
+
+function inferSegmentEnd(game?: GameRow) {
+  const start = inferSegmentStart(game);
+  return shiftHalfHour(start);
+}
+
+function shiftHalfHour(clock?: string | null) {
+  const total = parseClockToMinutes(clock);
+  if (total === null) {
+    return "";
+  }
+
+  return formatClockMinutes(total + 30);
+}
+
+function parseClockToMinutes(clock?: string | null) {
+  if (!clock) {
+    return null;
+  }
+
+  const [hours, minutes] = clock.split(":").map(Number);
+  if (Number.isNaN(hours) || Number.isNaN(minutes)) {
+    return null;
+  }
+
+  return hours * 60 + minutes;
+}
+
+function formatClockMinutes(totalMinutes: number) {
+  const normalized = ((totalMinutes % (24 * 60)) + 24 * 60) % (24 * 60);
+  const hours = Math.floor(normalized / 60);
+  const minutes = normalized % 60;
+  return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
+}
+
 function formatDateTime(value: string) {
   return new Date(value).toLocaleString("en-US", {
     month: "short",
@@ -850,6 +1145,94 @@ function formatGameHeading(game: GameRow, teamsById: Record<string, TeamRow>) {
 
 function formatClipRange(start: number, end: number) {
   return `${formatClock(start)} - ${formatClock(end)}`;
+}
+
+function findNextPlayableSegmentIndex(
+  segments: FilmRow[],
+  puckDropClock: string | null,
+  filmEndClock: string | null,
+  startIndex: number
+) {
+  for (let index = startIndex; index < segments.length; index += 1) {
+    const duration = getSegmentPlaybackDuration(
+      segments[index],
+      index,
+      puckDropClock,
+      filmEndClock
+    );
+
+    if (duration > 0) {
+      return index;
+    }
+  }
+
+  return -1;
+}
+
+function getSegmentPlaybackDuration(
+  segment: FilmRow,
+  index: number,
+  puckDropClock: string | null,
+  filmEndClock: string | null
+) {
+  const start = parseClockToMinutes(segment.segment_start_clock);
+  const end = parseClockToMinutes(segment.segment_end_clock);
+
+  if (start === null || end === null) {
+    return 0;
+  }
+
+  const playbackStart = index === 0 ? Math.max(start, parseClockToMinutes(puckDropClock) ?? start) : start;
+  const playbackEnd = Math.min(end, parseClockToMinutes(filmEndClock) ?? end);
+
+  return Math.max(0, (playbackEnd - playbackStart) * 60);
+}
+
+function buildPlaybackEmbedUrl(
+  segment: FilmRow,
+  puckDropClock: string | null,
+  filmEndClock: string | null,
+  index: number
+) {
+  const videoId = extractYoutubeId(segment.source_url);
+  const start = parseClockToMinutes(segment.segment_start_clock);
+  const end = parseClockToMinutes(segment.segment_end_clock);
+
+  if (!videoId || start === null || end === null) {
+    return null;
+  }
+
+  const playbackStart =
+    index === 0 ? Math.max(start, parseClockToMinutes(puckDropClock) ?? start) : start;
+  const playbackEnd = Math.min(end, parseClockToMinutes(filmEndClock) ?? end);
+
+  if (playbackEnd <= playbackStart) {
+    return null;
+  }
+
+  const startSeconds = (playbackStart - start) * 60;
+  const autoplay = "1";
+
+  return `https://www.youtube.com/embed/${videoId}?autoplay=${autoplay}&start=${startSeconds}&rel=0&modestbranding=1&playsinline=1`;
+}
+
+function extractYoutubeId(url: string) {
+  try {
+    const parsed = new URL(url);
+
+    if (parsed.hostname.includes("youtu.be")) {
+      return parsed.pathname.replace("/", "");
+    }
+
+    if (parsed.searchParams.get("v")) {
+      return parsed.searchParams.get("v");
+    }
+
+    const embedMatch = parsed.pathname.match(/\/embed\/([^/]+)/);
+    return embedMatch?.[1] ?? null;
+  } catch {
+    return null;
+  }
 }
 
 function formatTaggedPlayers(rows: ClipPlayerLinkRow[]) {
@@ -918,12 +1301,31 @@ const filmPrimaryStyle: CSSProperties = {
   fontWeight: 700,
 };
 
+const filmPrimaryButtonStyle: CSSProperties = {
+  ...filmPrimaryStyle,
+  width: "100%",
+  border: "none",
+};
+
 const filmSecondaryStyle: CSSProperties = {
   borderRadius: "14px",
   padding: "0.8rem 1rem",
   background: "var(--surface-light)",
   border: "1px solid var(--line)",
   color: "var(--text-muted)",
+};
+
+const segmentListStyle: CSSProperties = {
+  display: "grid",
+  gap: "0.5rem",
+};
+
+const segmentLinkStyle: CSSProperties = {
+  borderRadius: "12px",
+  padding: "0.7rem 0.85rem",
+  background: "rgba(255,255,255,0.04)",
+  border: "1px solid rgba(148,163,184,0.12)",
+  color: "var(--text)",
 };
 
 const bannerStyle: CSSProperties = {
@@ -985,4 +1387,65 @@ const clipOpenStyle: CSSProperties = {
   border: "1px solid rgba(148,163,184,0.12)",
   color: "var(--text)",
   fontWeight: 700,
+};
+
+const sheetOverlayStyle: CSSProperties = {
+  position: "fixed",
+  inset: 0,
+  background: "rgba(2,6,14,0.72)",
+  zIndex: 120,
+  display: "flex",
+  alignItems: "flex-end",
+  backdropFilter: "blur(10px)",
+};
+
+const playbackSheetStyle: CSSProperties = {
+  width: "100%",
+  background: "linear-gradient(180deg, rgba(9,16,29,0.98), rgba(5,10,19,0.98))",
+  color: "var(--text)",
+  borderTopLeftRadius: "24px",
+  borderTopRightRadius: "24px",
+  padding: "0.55rem 1rem 1.2rem",
+  borderTop: "1px solid rgba(148,163,184,0.16)",
+  boxShadow: "0 -24px 80px rgba(0,0,0,0.45)",
+};
+
+const sheetHandleStyle: CSSProperties = {
+  width: "56px",
+  height: "5px",
+  borderRadius: "999px",
+  background: "rgba(226,232,240,0.22)",
+  margin: "0.35rem auto 0.55rem",
+};
+
+const sheetHeaderStyle: CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "56px 1fr 56px",
+  alignItems: "center",
+  marginBottom: "0.6rem",
+  textAlign: "center",
+};
+
+const sheetDoneStyle: CSSProperties = {
+  background: "transparent",
+  color: "var(--accent-light)",
+  padding: 0,
+  fontWeight: 700,
+};
+
+const iframeWrapStyle: CSSProperties = {
+  position: "relative",
+  width: "100%",
+  paddingTop: "56.25%",
+  borderRadius: "18px",
+  overflow: "hidden",
+  background: "rgba(0,0,0,0.45)",
+};
+
+const iframeStyle: CSSProperties = {
+  position: "absolute",
+  inset: 0,
+  width: "100%",
+  height: "100%",
+  border: "none",
 };
