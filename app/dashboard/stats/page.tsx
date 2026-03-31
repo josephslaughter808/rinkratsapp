@@ -78,6 +78,10 @@ type PersonalSeasonStat = {
   pim: number | null;
 };
 
+function formatSeasonLabel(season: string) {
+  return season.replace(/_(?:peaks|rinkrats)$/i, "");
+}
+
 function generatePreviewPlayers(
   prefix: string,
   label: string,
@@ -681,7 +685,7 @@ export default function StatsPage() {
               </div>
               <div style={{ color: "var(--text-muted)" }}>{selectedTeam.name}</div>
               <div style={{ color: "var(--text-muted)", marginTop: "0.15rem" }}>
-                {season}
+                {formatSeasonLabel(season)}
               </div>
             </div>
           </div>

@@ -1,25 +1,129 @@
-import Link from "next/link";
-import { notFound } from "next/navigation";
-import { getGame, getTeam, type GameStar } from "@/lib/mockLeagueData";
+"use client";
 
-export default async function GameDetailsPage({
-  params,
-}: {
-  params: Promise<{ gameId: string }>;
-}) {
-  const { gameId } = await params;
-  const game = getGame(gameId);
+import Link from "next/link";
+import { useEffect, useState, type CSSProperties } from "react";
+import { useParams } from "next/navigation";
+import { supabase } from "@/lib/supabaseClient";
+
+type GameRow = {
+  id: string;
+  league_id: string | null;
+  season: string;
+  date: string;
+  home_team_id: string | null;
+  away_team_id: string | null;
+  home_score: number | null;
+  away_score: number | null;
+  is_playoff: boolean | null;
+};
+
+type TeamRow = {
+  id: string;
+  name: string;
+  logo_url: string | null;
+};
+
+type ClipRow = {
+  id: string;
+  description: string | null;
+  url: string;
+  timestamp_seconds: number | null;
+  player_id: string | null;
+  players?: Array<{
+    name: string | null;
+  }> | null;
+};
+
+export default function GameDetailsPage() {
+  const params = useParams<{ gameId: string }>();
+  const gameId = params?.gameId;
+  const [loading, setLoading] = useState(true);
+  const [game, setGame] = useState<GameRow | null>(null);
+  const [teamsById, setTeamsById] = useState<Record<string, TeamRow>>({});
+  const [clips, setClips] = useState<ClipRow[]>([]);
+
+  useEffect(() => {
+    if (!gameId) {
+      return;
+    }
+
+    let active = true;
+
+    async function loadGame() {
+      const { data: gameRow } = await supabase
+        .from("games_v2")
+        .select(
+          "id, league_id, season, date, home_team_id, away_team_id, home_score, away_score, is_playoff"
+        )
+        .eq("id", gameId)
+        .maybeSingle();
+
+      if (!active) {
+        return;
+      }
+
+      setGame((gameRow as GameRow | null) ?? null);
+
+      if (!gameRow) {
+        setLoading(false);
+        return;
+      }
+
+      const teamIds = [gameRow.home_team_id, gameRow.away_team_id].filter(Boolean) as string[];
+
+      const [{ data: teamRows }, { data: clipRows }] = await Promise.all([
+        supabase.from("teams").select("id, name, logo_url").in("id", teamIds),
+        supabase
+          .from("video_clips")
+          .select("id, description, url, timestamp_seconds, player_id, players(name)")
+          .eq("game_id", gameRow.id),
+      ]);
+
+      if (!active) {
+        return;
+      }
+
+      setTeamsById(
+        Object.fromEntries(((teamRows ?? []) as TeamRow[]).map((team) => [team.id, team]))
+      );
+      setClips((clipRows ?? []) as unknown as ClipRow[]);
+      setLoading(false);
+    }
+
+    loadGame();
+
+    return () => {
+      active = false;
+    };
+  }, [gameId]);
+
+  if (loading) {
+    return (
+      <main className="center-screen">
+        <p>Loading game...</p>
+      </main>
+    );
+  }
 
   if (!game) {
-    notFound();
+    return (
+      <main className="page-shell" style={{ paddingTop: "1.5rem" }}>
+        <div className="glass-panel" style={{ padding: "1.5rem" }}>
+          <Link href="/dashboard" style={{ display: "inline-block", marginBottom: "1rem" }}>
+            Back to dashboard
+          </Link>
+          <h1 style={{ fontSize: "1.8rem", marginBottom: "0.5rem" }}>Game not found</h1>
+          <p style={{ color: "var(--text-muted)" }}>
+            This game could not be loaded from the league schedule.
+          </p>
+        </div>
+      </main>
+    );
   }
 
-  const homeTeam = getTeam(game.homeTeamId);
-  const awayTeam = getTeam(game.awayTeamId);
-
-  if (!homeTeam || !awayTeam) {
-    notFound();
-  }
+  const homeTeam = teamsById[game.home_team_id ?? ""];
+  const awayTeam = teamsById[game.away_team_id ?? ""];
+  const isFinal = game.home_score !== null && game.away_score !== null;
 
   return (
     <main className="page-shell" style={{ paddingTop: "1.5rem" }}>
@@ -31,12 +135,16 @@ export default async function GameDetailsPage({
         <div style={{ display: "flex", justifyContent: "space-between", gap: "1rem", flexWrap: "wrap" }}>
           <div>
             <p style={{ color: "var(--text-muted)", marginBottom: "0.35rem" }}>
-              {game.date} • {game.rink}
+              {formatGameDate(game.date)} • {formatGameTime(game.date)} • {resolveRinkLabel(homeTeam, awayTeam)}
             </p>
-            <h1 style={{ fontSize: "2.35rem", marginBottom: "0.35rem" }}>
-              {awayTeam.name} at {homeTeam.name}
+            <h1 style={{ fontSize: "2.05rem", marginBottom: "0.35rem" }}>
+              {awayTeam?.name ?? "Away"} at {homeTeam?.name ?? "Home"}
             </h1>
-            <p style={{ color: "var(--text-muted)", maxWidth: "720px" }}>{game.recap}</p>
+            <p style={{ color: "var(--text-muted)", maxWidth: "720px" }}>
+              {isFinal
+                ? "Final score and tagged highlights for this league game."
+                : "Game details are live. Highlights and film links can be added after the game."}
+            </p>
           </div>
 
           <div style={detailSummaryStyle}>
@@ -44,158 +152,115 @@ export default async function GameDetailsPage({
               Game State
             </div>
             <div style={{ fontSize: "1.45rem", fontWeight: 700 }}>
-              {game.status === "final"
-                ? `${game.awayScore} - ${game.homeScore} final`
-                : `${game.date} at ${game.puckDrop}`}
+              {isFinal
+                ? `${game.away_score} - ${game.home_score} final`
+                : `${formatGameDate(game.date)} at ${formatGameTime(game.date)}`}
             </div>
             <div style={{ marginTop: "0.5rem", fontSize: "0.95rem", color: "var(--accent-light)" }}>
-              {game.fullFilmLabel}
+              {game.is_playoff ? "Playoff game" : "Regular season"}
             </div>
           </div>
         </div>
       </div>
 
       <div className="glass-panel" style={{ padding: "1.5rem" }}>
-        {game.stars ? (
-          <section style={{ marginBottom: "1.25rem" }}>
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                gap: "1rem",
-                flexWrap: "wrap",
-                marginBottom: "0.95rem",
-              }}
-            >
-              <div>
-                <h2 style={{ fontSize: "1.8rem" }}>Stars of the Game</h2>
-                <p style={{ color: "var(--text-muted)", marginTop: "0.25rem" }}>
-                  Offensive and defensive selections posted by the captain staff.
-                </p>
-              </div>
-            </div>
-
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-                gap: "0.9rem",
-              }}
-            >
-              <GameStarCard label="Offense" player={game.stars.offense} />
-              <GameStarCard label="Defense" player={game.stars.defense} />
-            </div>
-          </section>
-        ) : null}
-
         <div style={{ display: "flex", justifyContent: "space-between", gap: "1rem", flexWrap: "wrap", marginBottom: "1rem" }}>
           <div>
-            <h2 style={{ fontSize: "1.8rem" }}>Tagged Highlights</h2>
+            <h2 style={{ fontSize: "1.8rem" }}>Highlights</h2>
             <p style={{ color: "var(--text-muted)", marginTop: "0.25rem" }}>
-              Each clip is tied to a stat event and can store scorer, assists, hits, or penalties.
+              Captains can tag clips from uploaded film once they are available.
             </p>
           </div>
           <div style={detailBadgeStyle}>
-            {game.highlights.length} clip{game.highlights.length === 1 ? "" : "s"} mapped
+            {clips.length} clip{clips.length === 1 ? "" : "s"} mapped
           </div>
         </div>
 
-        <div style={{ display: "grid", gap: "1rem" }}>
-          {game.highlights.map((highlight) => (
-            <article
-              key={highlight.id}
-              style={{
-                padding: "1.15rem",
-                borderRadius: "18px",
-                border: "1px solid var(--line)",
-                background: "rgba(7, 17, 31, 0.74)",
-              }}
-            >
-              <div style={{ display: "flex", justifyContent: "space-between", gap: "0.75rem", flexWrap: "wrap", marginBottom: "0.65rem" }}>
-                <div>
-                  <div style={{ color: "var(--accent-light)", fontSize: "0.82rem", textTransform: "uppercase" }}>
-                    {highlight.type} • {highlight.period} • {highlight.gameClock}
+        {clips.length ? (
+          <div style={{ display: "grid", gap: "1rem" }}>
+            {clips.map((clip) => (
+              <article
+                key={clip.id}
+                style={{
+                  padding: "1.15rem",
+                  borderRadius: "18px",
+                  border: "1px solid var(--line)",
+                  background: "rgba(7, 17, 31, 0.74)",
+                }}
+              >
+                <div style={{ display: "flex", justifyContent: "space-between", gap: "0.75rem", flexWrap: "wrap", marginBottom: "0.65rem" }}>
+                  <div>
+                    <div style={{ color: "var(--accent-light)", fontSize: "0.82rem", textTransform: "uppercase" }}>
+                      Clip {clip.timestamp_seconds !== null ? `• ${formatTimestamp(clip.timestamp_seconds)}` : ""}
+                    </div>
+                    <h3 style={{ fontSize: "1.2rem", marginTop: "0.25rem" }}>
+                      {clip.description || "Tagged clip"}
+                    </h3>
                   </div>
-                  <h3 style={{ fontSize: "1.35rem", marginTop: "0.25rem" }}>{highlight.title}</h3>
+                  <a href={clip.url} target="_blank" rel="noreferrer" style={clipChipStyle}>
+                    Open clip
+                  </a>
                 </div>
-                <div style={clipChipStyle}>{highlight.filmLabel}</div>
-              </div>
 
-              <p style={{ color: "var(--text-muted)", marginBottom: "0.8rem" }}>{highlight.description}</p>
-              <div style={{ display: "grid", gap: "0.5rem" }}>
-                <div style={{ fontWeight: 700 }}>{highlight.statLine}</div>
                 <div style={{ color: "var(--text-muted)" }}>
-                  Players tagged: {highlight.players.join(", ")}
+                  Tagged player: {clip.players?.[0]?.name || "Unassigned"}
                 </div>
-                <div style={{ color: "var(--text-muted)" }}>
-                  Clip window: {highlight.clipStart} to {highlight.clipEnd}
-                </div>
-              </div>
-            </article>
-          ))}
-        </div>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <div
+            style={{
+              padding: "1.2rem",
+              borderRadius: "18px",
+              border: "1px dashed var(--line)",
+              color: "var(--text-muted)",
+            }}
+          >
+            No highlight clips have been added for this game yet.
+          </div>
+        )}
       </div>
     </main>
   );
 }
 
-function GameStarCard({
-  label,
-  player,
-}: {
-  label: string;
-  player: GameStar;
-}) {
-  return (
-    <article
-      style={{
-        padding: "1rem",
-        borderRadius: "18px",
-        border: "1px solid rgba(148,163,184,0.14)",
-        background: "rgba(7, 17, 31, 0.74)",
-        textAlign: "center",
-      }}
-    >
-      <div style={starChipStyle}>{label}</div>
-      <img src={player.profileUrl} alt={player.name} style={starPortraitStyle} />
-      <div style={{ fontWeight: 700, fontSize: "1.05rem" }}>{player.name}</div>
-      <div style={{ marginTop: "0.3rem", color: "var(--accent-light)", fontWeight: 700 }}>
-        #{player.number}
-      </div>
-      <div
-        style={{
-          marginTop: "0.2rem",
-          color: "var(--text-muted)",
-          fontSize: "0.78rem",
-          letterSpacing: "0.08em",
-          textTransform: "uppercase",
-        }}
-      >
-        {player.position}
-      </div>
-
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
-          gap: "0.45rem",
-          marginTop: "0.9rem",
-        }}
-      >
-        {player.stats.map((stat) => (
-          <div key={`${player.name}-${stat.label}`} style={starStatBoxStyle}>
-            <div style={{ fontWeight: 800 }}>{stat.value}</div>
-            <div style={{ color: "var(--text-muted)", fontSize: "0.68rem" }}>
-              {stat.label}
-            </div>
-          </div>
-        ))}
-      </div>
-    </article>
-  );
+function formatGameDate(value: string) {
+  return new Date(value).toLocaleDateString("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+  });
 }
 
-const detailSummaryStyle: React.CSSProperties = {
+function formatGameTime(value: string) {
+  return new Date(value).toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+function resolveRinkLabel(homeTeam?: TeamRow, awayTeam?: TeamRow) {
+  const names = `${homeTeam?.name ?? ""} ${awayTeam?.name ?? ""}`.toLowerCase();
+
+  if (names.includes("north")) {
+    return "North Rink";
+  }
+
+  if (names.includes("south")) {
+    return "South Rink";
+  }
+
+  return "Main Rink";
+}
+
+function formatTimestamp(seconds: number) {
+  const minutes = Math.floor(seconds / 60);
+  const remainder = seconds % 60;
+  return `${minutes}:${String(remainder).padStart(2, "0")}`;
+}
+
+const detailSummaryStyle: CSSProperties = {
   minWidth: "220px",
   padding: "1rem 1.1rem",
   borderRadius: "16px",
@@ -203,7 +268,7 @@ const detailSummaryStyle: React.CSSProperties = {
   border: "1px solid var(--line)",
 };
 
-const detailBadgeStyle: React.CSSProperties = {
+const detailBadgeStyle: CSSProperties = {
   borderRadius: "999px",
   border: "1px solid rgba(251, 191, 36, 0.28)",
   background: "rgba(251, 191, 36, 0.12)",
@@ -212,43 +277,11 @@ const detailBadgeStyle: React.CSSProperties = {
   fontSize: "0.85rem",
 };
 
-const clipChipStyle: React.CSSProperties = {
+const clipChipStyle: CSSProperties = {
   padding: "0.55rem 0.8rem",
   borderRadius: "14px",
   background: "var(--surface-light)",
   border: "1px solid var(--line)",
   fontSize: "0.9rem",
-};
-
-const starChipStyle: React.CSSProperties = {
-  display: "inline-flex",
-  alignItems: "center",
-  justifyContent: "center",
-  padding: "0.28rem 0.65rem",
-  borderRadius: "999px",
-  marginBottom: "0.85rem",
-  background: "rgba(249,115,22,0.12)",
-  border: "1px solid rgba(249,115,22,0.24)",
-  color: "var(--accent-light)",
-  fontSize: "0.74rem",
-  fontWeight: 700,
-  letterSpacing: "0.08em",
-  textTransform: "uppercase",
-};
-
-const starPortraitStyle: React.CSSProperties = {
-  width: "76px",
-  height: "76px",
-  borderRadius: "999px",
-  objectFit: "cover",
-  border: "2px solid rgba(249,115,22,0.45)",
-  margin: "0 auto 0.8rem",
-  background: "rgba(255,255,255,0.06)",
-};
-
-const starStatBoxStyle: React.CSSProperties = {
-  padding: "0.55rem 0.3rem",
-  borderRadius: "14px",
-  background: "rgba(20,37,64,0.82)",
-  border: "1px solid rgba(148,163,184,0.12)",
+  color: "var(--text)",
 };

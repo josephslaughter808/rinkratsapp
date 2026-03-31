@@ -21,6 +21,10 @@ type MembershipCard = {
   logoUrl: string | null;
 };
 
+function formatSeasonLabel(season: string) {
+  return season.replace(/_(?:peaks|rinkrats)$/i, "");
+}
+
 function positionColor(pos: string | null) {
   if (pos === "C") return "#facc15";
   if (pos === "LW" || pos === "RW") return "#60a5fa";
@@ -117,7 +121,7 @@ export default function ProfilePage() {
               id: team.id,
               name: team.name,
               league: league?.name
-                ? `${league.name}${league.season ? ` • ${league.season}` : ""}`
+                ? `${league.name}${league.season ? ` • ${formatSeasonLabel(league.season)}` : ""}`
                 : "League",
               role: row.role || "player",
               logoUrl: team.logo_url ?? null,
