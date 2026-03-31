@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { Fragment, useEffect, useRef } from "react";
 
 interface Team {
   id: string;
@@ -36,6 +36,11 @@ export default function DraftPickRail({
   const containerRef = useRef<HTMLDivElement>(null);
 
   const getTeam = (teamId: string) => teams.find((t) => t.id === teamId);
+  const totalPicks = picks.length;
+  const roundTotals = picks.reduce<Record<number, number>>((accumulator, pick) => {
+    accumulator[pick.round] = (accumulator[pick.round] ?? 0) + 1;
+    return accumulator;
+  }, {});
 
   // Auto-scroll when the current pick changes
   useEffect(() => {
@@ -68,91 +73,104 @@ export default function DraftPickRail({
       }}
     >
       <div style={{ display: "flex", gap: "0.32rem", padding: "0 0.5rem" }}>
-        {picks.map((pick) => {
+        {picks.map((pick, index) => {
           const team = getTeam(pick.teamId);
           const isCurrent = pick.overall === currentPickOverall;
           const isYourNext = pick.overall === yourNextPickOverall;
           const hasPlayer = Boolean(pick.player_name);
           const playerOutline = getPositionOutline(pick.player_position);
+          const isRoundStart = index === 0 || picks[index - 1]?.round !== pick.round;
+          const pickInRound = isRoundStart
+            ? 1
+            : picks.slice(0, index + 1).filter((entry) => entry.round === pick.round).length;
+          const picksThisRound = roundTotals[pick.round] ?? teams.length;
 
           return (
-            <div
-              key={pick.id}
-              data-pick={pick.overall}
-              style={{
-                width: 104,
-                minHeight: 92,
-                borderRadius: 8,
-                background: isCurrent
-                  ? "linear-gradient(180deg, rgba(249,115,22,0.95), rgba(194,65,12,0.95))"
-                  : "linear-gradient(180deg, rgba(28,28,32,0.98), rgba(21,21,24,0.98))",
-                border: hasPlayer
-                  ? `2px solid ${playerOutline}`
-                  : isYourNext
-                  ? "2px solid rgba(34,197,94,0.9)"
-                  : "1px solid rgba(148, 163, 184, 0.12)",
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                padding: "0.3rem 0.32rem 0.36rem",
-                color: "white",
-                flexShrink: 0,
-                boxShadow: isCurrent
-                  ? "0 10px 22px rgba(194,65,12,0.2)"
-                  : hasPlayer
-                  ? `0 6px 16px ${withAlpha(playerOutline, 0.16)}`
-                  : "none",
-                transition: "transform 180ms ease, border-color 180ms ease",
-              }}
-            >
+            <Fragment key={`group-${pick.id}`}>
+              {isRoundStart ? (
+                <div style={roundCardStyle}>
+                  <div style={roundCardTopStyle}>Round</div>
+                  <div style={roundCardNumberStyle}>{pick.round}</div>
+                </div>
+              ) : null}
+
               <div
+                data-pick={pick.overall}
                 style={{
-                  width: "100%",
-                  textAlign: "center",
-                  fontSize: "0.64rem",
-                  fontWeight: 700,
-                  color: "rgba(255,255,255,0.82)",
-                  lineHeight: 1.1,
+                  width: 104,
+                  minHeight: 92,
+                  borderRadius: 8,
+                  background: isCurrent
+                    ? "linear-gradient(180deg, rgba(249,115,22,0.95), rgba(194,65,12,0.95))"
+                    : "linear-gradient(180deg, rgba(28,28,32,0.98), rgba(21,21,24,0.98))",
+                  border: hasPlayer
+                    ? `2px solid ${playerOutline}`
+                    : isYourNext
+                    ? "2px solid rgba(34,197,94,0.9)"
+                    : "1px solid rgba(148, 163, 184, 0.12)",
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  padding: "0.3rem 0.32rem 0.36rem",
+                  color: "white",
+                  flexShrink: 0,
+                  boxShadow: isCurrent
+                    ? "0 10px 22px rgba(194,65,12,0.2)"
+                    : hasPlayer
+                    ? `0 6px 16px ${withAlpha(playerOutline, 0.16)}`
+                    : "none",
+                  transition: "transform 180ms ease, border-color 180ms ease",
                 }}
               >
-                Pick {pick.round} ({pick.overall})
-              </div>
+                <div
+                  style={{
+                    width: "100%",
+                    textAlign: "center",
+                    fontSize: "0.62rem",
+                    fontWeight: 700,
+                    color: "rgba(255,255,255,0.82)",
+                    lineHeight: 1.1,
+                  }}
+                >
+                  Pick {pickInRound}-{picksThisRound}({pick.overall}-{totalPicks})
+                </div>
 
-              {hasPlayer ? (
-                <>
-                  <img
-                    src={
-                      pick.player_profile_url ||
-                      `https://api.dicebear.com/9.x/adventurer-neutral/svg?seed=${encodeURIComponent(
-                        pick.player_name || "Player"
-                      )}`
-                    }
-                    alt={pick.player_name || "Player"}
-                    style={playerPhotoStyle}
-                  />
-                  <div style={teamNameUnderStyle}>{team?.name}</div>
-                  <div style={pickedPlayerNameStyle}>{pick.player_name}</div>
-                  <div style={pickedPlayerMetaStyle}>{pick.player_position}</div>
-                </>
-              ) : (
-                <>
-                  <div style={teamLogoStyle(team?.accent)}>
-                    {team?.logoUrl ? (
-                      <img
-                        src={team.logoUrl}
-                        alt={team.name}
-                        style={teamLogoImageStyle}
-                      />
-                    ) : (
-                      <span style={{ fontSize: "1.05rem", fontWeight: 800 }}>
-                        {team?.shortName || team?.name?.slice(0, 3) || "TM"}
-                      </span>
-                    )}
-                  </div>
-                  <div style={teamNameUnderStyle}>{team?.name}</div>
-                </>
-              )}
-            </div>
+                {hasPlayer ? (
+                  <>
+                    <img
+                      src={
+                        pick.player_profile_url ||
+                        `https://api.dicebear.com/9.x/adventurer-neutral/svg?seed=${encodeURIComponent(
+                          pick.player_name || "Player"
+                        )}`
+                      }
+                      alt={pick.player_name || "Player"}
+                      style={playerPhotoStyle}
+                    />
+                    <div style={teamNameUnderStyle}>{team?.name}</div>
+                    <div style={pickedPlayerNameStyle}>{pick.player_name}</div>
+                    <div style={pickedPlayerMetaStyle}>{pick.player_position}</div>
+                  </>
+                ) : (
+                  <>
+                    <div style={teamLogoStyle(team?.accent)}>
+                      {team?.logoUrl ? (
+                        <img
+                          src={team.logoUrl}
+                          alt={team.name}
+                          style={teamLogoImageStyle}
+                        />
+                      ) : (
+                        <span style={{ fontSize: "1.05rem", fontWeight: 800 }}>
+                          {team?.shortName || team?.name?.slice(0, 3) || "TM"}
+                        </span>
+                      )}
+                    </div>
+                    <div style={teamNameUnderStyle}>{team?.name}</div>
+                  </>
+                )}
+              </div>
+            </Fragment>
           );
         })}
       </div>
@@ -247,4 +265,35 @@ const pickedPlayerMetaStyle: React.CSSProperties = {
   fontSize: "0.6rem",
   color: "rgba(255,255,255,0.76)",
   fontWeight: 600,
+};
+
+const roundCardStyle: React.CSSProperties = {
+  width: 92,
+  minHeight: 92,
+  borderRadius: 8,
+  flexShrink: 0,
+  display: "flex",
+  flexDirection: "column",
+  alignItems: "center",
+  justifyContent: "center",
+  padding: "0.3rem",
+  background: "linear-gradient(180deg, rgba(12,14,20,0.98), rgba(7,8,11,0.98))",
+  border: "1px solid rgba(148,163,184,0.14)",
+  boxShadow: "inset 0 1px 0 rgba(255,255,255,0.04)",
+};
+
+const roundCardTopStyle: React.CSSProperties = {
+  fontSize: "0.62rem",
+  textTransform: "uppercase",
+  letterSpacing: "0.12em",
+  color: "rgba(148,163,184,0.76)",
+  fontWeight: 700,
+};
+
+const roundCardNumberStyle: React.CSSProperties = {
+  marginTop: "0.32rem",
+  fontSize: "1.5rem",
+  lineHeight: 1,
+  fontWeight: 900,
+  color: "rgba(255,255,255,0.96)",
 };
