@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "../../../lib/supabaseClient";
@@ -46,6 +47,7 @@ export default function ProfilePage() {
   const [savingPosition, setSavingPosition] = useState(false);
   const [selectedPosition, setSelectedPosition] = useState<string>("");
   const [email, setEmail] = useState<string | null>(null);
+  const [canCommission, setCanCommission] = useState(false);
 
   useEffect(() => {
     async function loadProfile() {
@@ -59,6 +61,17 @@ export default function ProfilePage() {
 
       setAuthUserId(session.user.id);
       setEmail(session.user.email ?? null);
+
+      if (selectedTeam?.leagueId) {
+        const { data: ownedTeams } = await supabase
+          .from("teams")
+          .select("id")
+          .eq("league_id", selectedTeam.leagueId)
+          .eq("owner_id", session.user.id)
+          .limit(1);
+
+        setCanCommission((ownedTeams?.length ?? 0) > 0 || selectedTeam.role === "commissioner");
+      }
 
       const { data: ptRow } = await supabase
         .from("player_teams")
@@ -134,7 +147,7 @@ export default function ProfilePage() {
     }
 
     loadProfile();
-  }, [router]);
+  }, [router, selectedTeam?.leagueId, selectedTeam?.role]);
 
   async function uploadAvatar(event: React.ChangeEvent<HTMLInputElement>) {
     try {
@@ -392,6 +405,36 @@ export default function ProfilePage() {
           )}
         </div>
       </section>
+
+      {canCommission ? (
+        <section style={sectionStackStyle}>
+          <div style={sectionTitleRowStyle}>
+            <h2 style={sectionTitleStyle}>League Tools</h2>
+          </div>
+
+          <Link
+            href="/dashboard/commissioner"
+            className="glass-panel"
+            style={{
+              ...infoCardStyle,
+              display: "grid",
+              gap: "0.4rem",
+              textDecoration: "none",
+              color: "var(--text)",
+              border: "1px solid rgba(96,165,250,0.26)",
+              boxShadow: "0 0 0 1px rgba(125,211,252,0.04), 0 0 18px rgba(56,189,248,0.12)",
+            }}
+          >
+            <div style={eyebrowStyle}>Commissioner</div>
+            <div style={{ fontSize: "1.15rem", fontWeight: 800 }}>
+              Open Commissioner Hub
+            </div>
+            <p style={{ color: "var(--text-muted)", margin: 0 }}>
+              View league-wide players, set captains and subs, and review every team’s feed and film.
+            </p>
+          </Link>
+        </section>
+      ) : null}
 
       <section style={sectionStackStyle}>
         <div style={sectionTitleRowStyle}>

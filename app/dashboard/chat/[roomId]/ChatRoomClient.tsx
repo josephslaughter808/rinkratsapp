@@ -33,7 +33,7 @@ type TeamRow = {
 };
 
 const filmStaffRoles = new Set(["captain", "assistant_captain", "film_manager"]);
-const captainRoles = new Set(["captain", "assistant_captain"]);
+const captainRoles = new Set(["captain", "assistant_captain", "commissioner"]);
 
 export default function ChatRoomClient({ roomId }: { roomId: string }) {
   const { selectedTeam } = useTeam();
@@ -44,6 +44,7 @@ export default function ChatRoomClient({ roomId }: { roomId: string }) {
   const [messages, setMessages] = useState<MessageRow[]>([]);
   const [playersById, setPlayersById] = useState<Record<string, PlayerRow>>({});
   const [team, setTeam] = useState<TeamRow | null>(null);
+  const [canCompose, setCanCompose] = useState(true);
   const [error, setError] = useState("");
   const bottomRef = useRef<HTMLDivElement | null>(null);
 
@@ -75,6 +76,15 @@ export default function ChatRoomClient({ roomId }: { roomId: string }) {
         return;
       }
 
+      if (
+        nextRoom.type.startsWith("league_announcements:") &&
+        nextRoom.type !== `league_announcements:${teamMember.leagueId}`
+      ) {
+        setError("This room belongs to another league.");
+        setLoading(false);
+        return;
+      }
+
       if (nextRoom.team_id && nextRoom.team_id !== teamMember.id) {
         setError("This room belongs to another team.");
         setLoading(false);
@@ -92,6 +102,12 @@ export default function ChatRoomClient({ roomId }: { roomId: string }) {
         setLoading(false);
         return;
       }
+
+      setCanCompose(
+        nextRoom.type.startsWith("league_announcements:")
+          ? captainRoles.has(teamMember.role ?? "")
+          : true
+      );
 
       const membershipResult = await supabase
         .from("chat_room_members")
@@ -207,6 +223,9 @@ export default function ChatRoomClient({ roomId }: { roomId: string }) {
     if (room?.type === "film_staff") {
       return `${team?.name ?? activeTeam?.name ?? "Team"} Film Room`;
     }
+    if (room?.type.startsWith("league_announcements:")) {
+      return "League Announcements";
+    }
     if (room?.type === "team") {
       return `${team?.name ?? activeTeam?.name ?? "Team"} Chat`;
     }
@@ -237,7 +256,7 @@ export default function ChatRoomClient({ roomId }: { roomId: string }) {
   }, [messages]);
 
   async function handleSendMessage() {
-    if (!activeTeam || !draftMessage.trim()) {
+    if (!activeTeam || !draftMessage.trim() || !canCompose) {
       return;
     }
 
@@ -310,7 +329,9 @@ export default function ChatRoomClient({ roomId }: { roomId: string }) {
                 ? "Players and team staff"
                 : room?.type === "captains"
                   ? "Captains and assistant captains"
-                  : "Captains, assistants, and film staff"}
+                  : room?.type.startsWith("league_announcements:")
+                    ? "League-wide read channel"
+                    : "Captains, assistants, and film staff"}
             </div>
           </div>
         </div>
@@ -414,22 +435,28 @@ export default function ChatRoomClient({ roomId }: { roomId: string }) {
         <div ref={bottomRef} />
       </div>
 
-      <div
-        className="glass-panel"
-        style={{ margin: "0 1rem 1rem", padding: "0.85rem", display: "flex", gap: "0.55rem" }}
-      >
-        <textarea
-          placeholder="Type a message..."
-          value={draftMessage}
-          onChange={(event) => setDraftMessage(event.target.value)}
-          rows={1}
-          style={composerStyle}
-        />
+      {canCompose ? (
+        <div
+          className="glass-panel"
+          style={{ margin: "0 1rem 1rem", padding: "0.85rem", display: "flex", gap: "0.55rem" }}
+        >
+          <textarea
+            placeholder="Type a message..."
+            value={draftMessage}
+            onChange={(event) => setDraftMessage(event.target.value)}
+            rows={1}
+            style={composerStyle}
+          />
 
-        <button onClick={handleSendMessage} disabled={!draftMessage.trim()} style={sendButtonStyle}>
-          Send
-        </button>
-      </div>
+          <button onClick={handleSendMessage} disabled={!draftMessage.trim()} style={sendButtonStyle}>
+            Send
+          </button>
+        </div>
+      ) : (
+        <div className="glass-panel" style={readOnlyBannerStyle}>
+          This room is read-only for players. Captains, assistants, and commissioners can post league announcements.
+        </div>
+      )}
     </div>
   );
 }
@@ -526,4 +553,10 @@ const errorStyle: CSSProperties = {
   padding: "0.9rem 1rem",
   color: "#fecaca",
   borderColor: "rgba(248,113,113,0.35)",
+};
+
+const readOnlyBannerStyle: CSSProperties = {
+  margin: "0 1rem 1rem",
+  padding: "0.9rem 1rem",
+  color: "var(--text-muted)",
 };

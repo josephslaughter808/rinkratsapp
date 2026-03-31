@@ -5,7 +5,7 @@ import { useEffect, useState, type CSSProperties } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { useTeam } from "@/context/TeamContext";
 
-type RoomType = "team" | "captains" | "film_staff";
+type RoomType = "team" | "captains" | "film_staff" | "league_announcements";
 
 type RoomRow = {
   id: string;
@@ -29,7 +29,7 @@ type TeamRow = {
 };
 
 const filmStaffRoles = new Set(["captain", "assistant_captain", "film_manager"]);
-const captainRoles = new Set(["captain", "assistant_captain"]);
+const captainRoles = new Set(["captain", "assistant_captain", "commissioner"]);
 
 export default function ChatHome() {
   const { selectedTeam } = useTeam();
@@ -48,12 +48,19 @@ export default function ChatHome() {
     const activeState = { current: true };
 
     async function ensureRoom(type: RoomType) {
-      const existing = await supabase
+      const roomType =
+        type === "league_announcements" && teamMember.leagueId
+          ? `league_announcements:${teamMember.leagueId}`
+          : type;
+
+      const roomQuery = supabase
         .from("chat_rooms")
         .select("id, type, team_id, created_at")
-        .eq("team_id", teamMember.id)
-        .eq("type", type)
-        .maybeSingle();
+        .eq("type", roomType);
+
+      const existing = await (type === "league_announcements"
+        ? roomQuery.is("team_id", null)
+        : roomQuery.eq("team_id", teamMember.id)).maybeSingle();
 
       const room = existing.data?.id
         ? (existing.data as RoomRow)
@@ -61,8 +68,8 @@ export default function ChatHome() {
             await supabase
               .from("chat_rooms")
               .insert({
-                type,
-                team_id: teamMember.id,
+                type: roomType,
+                team_id: type === "league_announcements" ? null : teamMember.id,
               })
               .select("id, type, team_id, created_at")
               .single()
@@ -91,6 +98,9 @@ export default function ChatHome() {
       setLoading(true);
 
       const desiredTypes: RoomType[] = ["team"];
+      if (teamMember.leagueId) {
+        desiredTypes.unshift("league_announcements");
+      }
       if (captainRoles.has(teamMember.role ?? "")) {
         desiredTypes.push("captains");
       }
@@ -176,8 +186,8 @@ export default function ChatHome() {
         <div style={{ color: "var(--accent-light)", marginBottom: "0.35rem" }}>Chat</div>
         <h1 style={{ fontSize: "1.8rem", marginBottom: "0.35rem" }}>Team messaging</h1>
         <p style={{ color: "var(--text-muted)", fontSize: "0.95rem", lineHeight: 1.5 }}>
-          Team chat stays open to your roster. Captain and film rooms appear automatically when your role
-          allows them.
+          Team chat stays open to your roster. League announcements are readable by everyone in your
+          league, while captain and film rooms appear automatically when your role allows them.
         </p>
       </section>
 
@@ -237,6 +247,14 @@ export default function ChatHome() {
 }
 
 function getRoomMeta(type: string, teamName: string) {
+  if (type.startsWith("league_announcements:")) {
+    return {
+      title: "League Announcements",
+      subtitle: "Readable by the whole league",
+      shortLabel: "L",
+    };
+  }
+
   if (type === "captains") {
     return {
       title: `${teamName} Leadership`,
