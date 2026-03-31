@@ -22,12 +22,13 @@ type DraftTab = "players" | "queue" | "board" | "rosters";
 
 export default function DraftRoomPage() {
   const [activeTab, setActiveTab] = useState<DraftTab>("players");
+  const [queuedPlayerIds, setQueuedPlayerIds] = useState<string[]>(draftQueue);
   const onClockTeam =
     getTeam(
       draftPicks.find((pick) => pick.overall === draftConfig.currentPickOverall)
         ?.teamId || ""
     )?.name || "League Team";
-  const queuePlayers = draftQueue
+  const queuePlayers = queuedPlayerIds
     .map((playerId) => getPlayer(playerId))
     .filter((player): player is NonNullable<typeof player> => Boolean(player));
   const transformedPicks = draftPicks.map((pick) => {
@@ -42,6 +43,14 @@ export default function DraftRoomPage() {
       player_position: player?.position || null,
     };
   });
+
+  function handleToggleQueue(playerId: string) {
+    setQueuedPlayerIds((current) =>
+      current.includes(playerId)
+        ? current.filter((id) => id !== playerId)
+        : [...current, playerId]
+    );
+  }
 
   return (
     <div
@@ -83,8 +92,9 @@ export default function DraftRoomPage() {
         {activeTab === "players" && (
           <PlayersTab
             players={draftPlayers}
-            queuedPlayerIds={draftQueue}
+            queuedPlayerIds={queuedPlayerIds}
             draftedPlayerIds={draftedPlayerIds}
+            onToggleQueue={handleToggleQueue}
           />
         )}
         {activeTab === "queue" && <QueueTab players={queuePlayers} />}

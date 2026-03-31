@@ -7,10 +7,12 @@ export default function PlayersTab({
   players,
   queuedPlayerIds,
   draftedPlayerIds,
+  onToggleQueue,
 }: {
   players: DraftPlayer[];
   queuedPlayerIds: string[];
   draftedPlayerIds: string[];
+  onToggleQueue: (playerId: string) => void;
 }) {
   const [positionFilter, setPositionFilter] = useState<string>("All");
   const [tierFilter, setTierFilter] = useState<string>("All");
@@ -156,7 +158,12 @@ export default function PlayersTab({
                 </div>
 
                 <div style={queueCellStyle}>
-                  <button style={queueButtonStyle(isQueued)}>Queue</button>
+                  <button
+                    onClick={() => onToggleQueue(player.id)}
+                    style={queueButtonStyle(isQueued)}
+                  >
+                    Queue
+                  </button>
                 </div>
               </div>
             </div>
@@ -181,15 +188,13 @@ function formatLevel(level: DraftPlayer["tier"]) {
 function queueButtonStyle(queued: boolean): React.CSSProperties {
   return {
     borderRadius: "999px",
-    padding: "0.28rem 0.72rem",
+    padding: "0.28rem 0.68rem",
     display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",
-    background: queued ? "rgba(249, 115, 22, 0.16)" : "rgba(255,255,255,0.02)",
-    border: `1px solid ${
-      queued ? "rgba(249,115,22,0.34)" : "rgba(255,255,255,0.54)"
-    }`,
-    color: "white",
+    background: queued ? "rgba(255,255,255,0.92)" : "transparent",
+    border: "1px solid rgba(255,255,255,0.78)",
+    color: queued ? "rgba(55,65,81,0.96)" : "white",
     fontSize: "0.72rem",
     fontWeight: 700,
     minWidth: "64px",
@@ -245,9 +250,9 @@ const tableShellStyle: React.CSSProperties = {
 
 const headerRowStyle: React.CSSProperties = {
   display: "grid",
-  gridTemplateColumns: "34px minmax(0, 1.3fr) 38px 44px 44px 44px 64px",
+  gridTemplateColumns: "34px minmax(0, 1.28fr) 40px 46px 48px 48px 72px",
   alignItems: "center",
-  gap: "0.35rem",
+  gap: "0.42rem",
   padding: "0.45rem 0.35rem 0.35rem",
   color: "rgba(255,255,255,0.65)",
   fontSize: "0.66rem",
@@ -273,9 +278,9 @@ const queueHeaderStyle: React.CSSProperties = {
 
 const playerRowStyle: React.CSSProperties = {
   display: "grid",
-  gridTemplateColumns: "34px minmax(0, 1.3fr) 38px 44px 44px 44px 64px",
+  gridTemplateColumns: "34px minmax(0, 1.28fr) 40px 46px 48px 48px 72px",
   alignItems: "center",
-  gap: "0.35rem",
+  gap: "0.42rem",
   minHeight: "50px",
   padding: "0.38rem 0.35rem",
   borderTop: "1px solid rgba(148,163,184,0.08)",
@@ -323,11 +328,13 @@ const numberCellStyle: React.CSSProperties = {
   color: "rgba(255,255,255,0.78)",
   fontSize: "0.8rem",
   fontWeight: 600,
+  paddingRight: "0.14rem",
 };
 
 const queueCellStyle: React.CSSProperties = {
   display: "flex",
   justifyContent: "flex-end",
+  paddingLeft: "0.22rem",
 };
 
 function positionBadgeStyle(position: string): React.CSSProperties {
