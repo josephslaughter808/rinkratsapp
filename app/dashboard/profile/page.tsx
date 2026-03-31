@@ -165,6 +165,12 @@ export default function ProfilePage() {
             }
           : prev
       );
+
+      window.dispatchEvent(
+        new CustomEvent("pucklytics-profile-photo-updated", {
+          detail: publicUrl,
+        })
+      );
     } catch (error) {
       console.error("Error uploading avatar:", error);
     } finally {

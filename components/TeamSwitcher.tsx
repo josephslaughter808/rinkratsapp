@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { SelectedTeam, useTeam } from "@/context/TeamContext";
 
@@ -116,38 +116,85 @@ export default function TeamSwitcher() {
     loadTeams();
   }, [selectedTeam, setSelectedTeam]);
 
-  useEffect(() => {
-    async function loadPlayerCard() {
-      if (!selectedTeam || !userId) {
-        setPlayer(null);
-        return;
-      }
-
-      const { data: profileRow } = await supabase
-        .from("players")
-        .select("profile_pic_url")
-        .eq("user_id", userId)
-        .not("profile_pic_url", "is", null)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      const { data: selectedPlayerRow } = await supabase
-        .from("players")
-        .select("name, number, position")
-        .eq("id", selectedTeam.player_id)
-        .maybeSingle();
-
-      setPlayer({
-        name: selectedPlayerRow?.name ?? null,
-        number: selectedPlayerRow?.number ?? null,
-        position: selectedPlayerRow?.position ?? null,
-        profile_pic_url: profileRow?.profile_pic_url ?? null,
-      });
+  const loadPlayerCard = useCallback(async () => {
+    if (!selectedTeam || !userId) {
+      setPlayer(null);
+      return;
     }
 
-    loadPlayerCard();
+    const { data: profileRow } = await supabase
+      .from("players")
+      .select("profile_pic_url")
+      .eq("user_id", userId)
+      .not("profile_pic_url", "is", null)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    const { data: selectedPlayerRow } = await supabase
+      .from("players")
+      .select("name, number, position")
+      .eq("id", selectedTeam.player_id)
+      .maybeSingle();
+
+    setPlayer({
+      name: selectedPlayerRow?.name ?? null,
+      number: selectedPlayerRow?.number ?? null,
+      position: selectedPlayerRow?.position ?? null,
+      profile_pic_url: profileRow?.profile_pic_url ?? null,
+    });
   }, [selectedTeam, userId]);
+
+  useEffect(() => {
+    queueMicrotask(() => {
+      void loadPlayerCard();
+    });
+  }, [loadPlayerCard]);
+
+  useEffect(() => {
+    const refreshPlayerCard = () => {
+      void loadPlayerCard();
+    };
+
+    const handleProfilePhotoUpdate = (event: Event) => {
+      const customEvent = event as CustomEvent<string>;
+
+      if (customEvent.detail) {
+        setPlayer((current) =>
+          current
+            ? {
+                ...current,
+                profile_pic_url: customEvent.detail,
+              }
+            : current
+        );
+      }
+
+      void loadPlayerCard();
+    };
+
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        void loadPlayerCard();
+      }
+    };
+
+    window.addEventListener(
+      "pucklytics-profile-photo-updated",
+      handleProfilePhotoUpdate as EventListener
+    );
+    window.addEventListener("focus", refreshPlayerCard);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener(
+        "pucklytics-profile-photo-updated",
+        handleProfilePhotoUpdate as EventListener
+      );
+      window.removeEventListener("focus", refreshPlayerCard);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [loadPlayerCard]);
 
   if (loading || !selectedTeam || !player) {
     return (
