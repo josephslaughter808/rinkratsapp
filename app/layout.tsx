@@ -17,8 +17,12 @@ export const metadata: Metadata = {
   description: "Adult league hockey stats, highlights, draft room, film, and team communication.",
   applicationName: "Pucklytics",
   icons: {
-    icon: "/pucklytics-logo.png",
-    apple: "/pucklytics-logo.png",
+    icon: [
+      { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: [{ url: "/icons/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
+    shortcut: ["/icons/icon-192.png"],
   },
   appleWebApp: {
     capable: true,
@@ -31,6 +35,7 @@ export const viewport: Viewport = {
   themeColor: "#07111f",
   width: "device-width",
   initialScale: 1,
+  maximumScale: 1,
   viewportFit: "cover",
 };
 

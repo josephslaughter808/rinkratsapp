@@ -6,11 +6,13 @@ const config: CapacitorConfig = {
   webDir: 'public',
   server: {
     url: process.env.CAP_SERVER_URL || 'https://rinkratsapp-josephslaughter808s-projects.vercel.app',
-    cleartext: true
+    cleartext: true,
   },
   ios: {
     contentInset: 'automatic',
     scrollEnabled: true,
+    limitsNavigationsToAppBoundDomains: true,
+    preferredContentMode: 'mobile',
   },
   backgroundColor: '#07111f',
 };

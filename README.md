@@ -1,6 +1,6 @@
-# Rink Rats
+# Pucklytics
 
-Rink Rats is a mobile-first adult hockey league app built with Next.js and wrapped for native delivery with Capacitor.
+Pucklytics is a mobile-first adult hockey league app built with Next.js and wrapped for native delivery with Capacitor.
 
 ## Local Web App
 
@@ -18,8 +18,8 @@ This repo already includes a Capacitor iOS shell in [`ios/App`](./ios/App).
 
 Current Capacitor identity:
 
-- App name: `Rink Rats`
-- App id: `com.josephslaughter.rinkratsapp`
+- App name: `Pucklytics`
+- App id: `com.josephslaughter.pucklytics`
 - Default shell URL: [rinkratsapp-josephslaughter808s-projects.vercel.app](https://rinkratsapp-josephslaughter808s-projects.vercel.app)
 
 Useful commands:
@@ -52,10 +52,35 @@ npm run cap:open:ios
 
 ## What Still Needs Native/App Store Work
 
-- Real app icons and splash artwork
 - Apple signing, provisioning, and App Store Connect setup
+- Installing a native iPhone build or publishing to TestFlight
 - Android package setup when you want Google Play delivery
 - Native plugins for features like push notifications, camera, and richer uploads
+
+## Working Without Xcode
+
+You can keep using the Safari home-screen version without Xcode.
+
+What can already be done without it:
+
+- build and ship the web app
+- prepare the Capacitor shell
+- update icons, splash assets, metadata, and app config
+- keep deploying production updates through GitHub and Vercel
+
+What still requires Apple tooling or an equivalent cloud build service:
+
+- native iPhone installs
+- code signing
+- `.ipa` generation
+- TestFlight submission
+- App Store release
+
+If Xcode keeps crashing, the practical alternatives are:
+
+1. keep using the home-screen app for now
+2. use another Mac for the signing/upload step
+3. use a cloud iOS build service later
 
 ## Tech Stack
 
